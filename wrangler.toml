@@ -1,0 +1,57 @@
+name = "filecove"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# 绑定 R2 存储桶（R2 绑定模式时使用；bucket_name 按你创建的桶名填写）
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "filecove"
+
+# D1 数据库（database_id 在 Cloudflare 控制台创建后获取）
+[[d1_databases]]
+binding = "DB"
+database_name = "filecove"
+database_id = "在这里填写你的 D1 database_id"
+
+[vars]
+# 存储驱动：auto（有 S3_* 用 S3，否则用 R2 绑定）/ r2 / s3
+STORAGE_DRIVER = "auto"
+
+# —— 直链相关（最关键）——
+# 桶的公网访问域名（R2: r2.dev 域名或自定义域；S3: 公有读 Endpoint/CDN 域名）
+# 填了它，下载就是 302 到真正的对象直链，完全不经过 Worker
+PUBLIC_BASE_URL = ""
+# auto=有公网域名就用直链，没有就预签名直链，再不行才走 Worker 代理
+# public=强制走 PUBLIC_BASE_URL / signed=强制预签名 / proxy=强制 Worker 代理
+DOWNLOAD_MODE = "auto"
+
+# —— 安全与限流 ——
+IP_MAX_DOWNLOADS = "30"      # 单 IP 每窗口下载次数上限
+IP_WINDOW_SECONDS = "3600"
+BAN_MINUTES = "60"           # 超限自动封禁时长
+MONTHLY_TRAFFIC_LIMIT = "0"  # 月度流量上限（字节），0 不限
+
+# —— 上传 ——
+UPLOAD_MAX_SIZE = "107374182400"     # 100GB
+MULTIPART_THRESHOLD = "104857600"    # 超过 100MB 走分片直传
+MULTIPART_PART_SIZE = "16777216"     # 16MB/片
+
+# —— 人机验证（可选）——
+TURNSTILE_SITEKEY = ""
+TURNSTILE_ENABLED = "0"
+
+# —— R2 绑定模式下用于后台展示的桶名（可选）——
+R2_BUCKET_NAME = "filecove"
+
+# 以下敏感项用 wrangler secret 设置，不要写进仓库：
+# npx wrangler secret put ADMIN_PASSWORD
+# npx wrangler secret put TURNSTILE_SECRET
+# npx wrangler secret put S3_ACCESS_KEY_ID
+# npx wrangler secret put S3_SECRET_ACCESS_KEY
+
+# —— 若改用 S3 兼容存储/或让 R2 走 S3 API（推荐，支持浏览器直传+分片）——
+# 在控制台 Workers → 设置 → 变量 里添加（密钥类用"加密"类型）：
+# S3_ENDPOINT = "https://<accountid>.r2.cloudflarestorage.com"   # R2 示例
+# S3_BUCKET = "filecove"
+# S3_REGION = "auto"
+# S3_FORCE_PATH_STYLE = "true"
