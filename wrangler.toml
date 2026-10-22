@@ -7,11 +7,13 @@ compatibility_date = "2025-06-01"
 binding = "BUCKET"
 bucket_name = "filecove"
 
-# D1 数据库（database_id 在 Cloudflare 控制台创建后获取）
+# D1 数据库：database_id 不用手填——
+#   GitHub Actions 部署时会自动建库并把 id 写进来；本地跑 `npm run setup` 也一样。
+#   只有走 Cloudflare 网页端「连接 GitHub」部署时，才需要手动填一次。
 [[d1_databases]]
 binding = "DB"
 database_name = "filecove"
-database_id = "在这里填写你的 D1 database_id"
+database_id = "待自动填充（Actions / npm run setup 会自动写入）"
 
 [vars]
 # 存储驱动：auto（有 S3_* 用 S3，否则用 R2 绑定）/ r2 / s3

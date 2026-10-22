@@ -23,57 +23,61 @@
 
 ---
 
-## 二、部署（Cloudflare 网页端，约 15 分钟，全程不用命令行）
+## 二、部署（GitHub Actions 全自动，不用改任何文件）
 
-> 需要：一个 GitHub 账号、一个 Cloudflare 账号、一个自定义域名（强烈建议，`workers.dev` 域名国内常打不开）。
+全程不用命令行，也不用往 `wrangler.toml` 里填 `database_id`——**D1 数据库和 R2 存储桶都由 Actions 自动创建**，id 会自动写回配置文件再部署。
 
 ### 1. Fork 本仓库
-点右上角 **Fork**，复制到你自己的 GitHub 账号（Worker 要从你的仓库拉代码）。
+点右上角 **Fork**，复制到你自己的 GitHub 账号。
 
-### 2. 创建 R2 存储桶
-控制台左侧 **存储和数据库 → R2 对象存储 → 创建存储桶**，名称填 `filecove`，位置「自动」，创建。
+### 2. 拿 Cloudflare API 令牌和 Account ID
+**Account ID**：打开 Cloudflare 控制台，右侧栏或 **Workers 和 Pages** 概览页就能看到一串 32 位十六进制字符。
 
-### 3. 创建 D1 数据库
-**存储和数据库 → D1 SQL 数据库 → 创建数据库**，名称填 `filecove`。建好后打开它，复制 **database_id**。
+**API 令牌**：右上角头像 → **我的个人资料 → API 令牌 → 创建令牌**，用「**编辑 Cloudflare Workers**」模板，或自定义令牌时至少给这三项权限：
 
-### 4. 把 database_id 填进 wrangler.toml
-在你 Fork 的仓库里打开 `wrangler.toml`，右上角铅笔编辑，把
+| 范围 | 权限 |
+| --- | --- |
+| Account → Workers Scripts | 编辑 |
+| Account → D1 | 编辑 |
+| Account → R2 | 编辑 |
 
-```toml
-database_id = "在这里填写你的 D1 database_id"
-```
+### 3. 在 GitHub 里配 Secrets
+进你 Fork 的仓库 → **Settings → Secrets and variables → Actions → New repository secret**，添加：
 
-换成刚复制的 id，点 **Commit changes**。
-
-> 建表不用你管：Worker 第一次被访问时会自动执行建表语句（幂等，重复执行无副作用）。
-
-### 5. 部署 Worker
-**计算 → Workers 和 Pages → 创建 → 连接到 GitHub**，选中你 Fork 的仓库，下一步 → **部署**（框架预设留空）。等构建显示成功。
-
-### 6. 绑定 R2 和 D1
-进入 Worker → **设置 → 绑定 → 添加**：
-
-| 类型 | 变量名 | 资源 |
+| Secret | 是否必需 | 说明 |
 | --- | --- | --- |
-| R2 存储桶 | `BUCKET` | 第 2 步的桶 |
-| D1 数据库 | `DB` | 第 3 步的数据库 |
+| `CLOUDFLARE_API_TOKEN` | ✅ | 第 2 步的令牌 |
+| `CLOUDFLARE_ACCOUNT_ID` | ✅ | 第 2 步的 Account ID |
+| `ADMIN_PASSWORD` | ✅ | 网盘后台登录密码，自己设一个 |
+| `TURNSTILE_SECRET` | 可选 | 开人机验证时填 |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | 可选 | 改用 S3 兼容存储时填 |
 
-变量名必须完全一致，否则代码找不到资源。
+> 少配 `ADMIN_PASSWORD` 的话，工作流会在第一步直接报错提醒你，不会部署出一个登不进去的网盘。
 
-### 7. 设置变量
-**设置 → 变量和机密 → 添加**：
+### 4. 触发部署
+**Actions → Deploy Filecove → Run workflow**（之后每次推 main 分支也会自动部署）。
 
-| 名称 | 类型 | 值 |
-| --- | --- | --- |
-| `ADMIN_PASSWORD` | **机密**（加密） | 你的后台登录密码 |
-| `PUBLIC_BASE_URL` | 文本 | 桶的公网域名，**直链的关键**，见下一节 |
+工作流会依次做：检查 Secrets → 装依赖 → **自动建/复用 D1 数据库 `filecove` 并把 id 写回 `wrangler.toml`** → **自动建/复用 R2 桶 `filecove`** → 建表 → 部署 Worker 并注入密钥。
 
-### 8. 绑定自定义域名
-**设置 → 域和路由 → 添加 → 自定义域**，例如 `pan.yourdomain.com`（域名需托管在 Cloudflare）。
+跑完在 **Run workflow 的 Summary** 里能看到用到的库名和桶名。数据库已存在就复用，重跑不会重复创建。
 
-打开它，输入 `ADMIN_PASSWORD` 登录，网盘就能用了。之后生成的分享链接都会用你的域名。
+### 5. 最后两件必须手动做的事
+自动化只到部署为止，这两步要你自己的域名，必须手动：
 
----
+1. **绑定自定义域名**：Cloudflare → **Workers 和 Pages → filecove → 设置 → 域和路由 → 添加 → 自定义域**，例如 `pan.yourdomain.com`（`workers.dev` 域名国内常打不开）。
+2. **配 `PUBLIC_BASE_URL`**：同一个 Worker 的 **设置 → 变量和机密 → 添加**（类型选「文本」），值填桶的公网域名，见下一节。
+
+完成，打开你的域名、输入 `ADMIN_PASSWORD` 即可登录。
+
+> 顺带一提：建表不用管，Worker 第一次被访问时会自动建（工作流里也执行了一次 `schema.sql` 让它立即就绪）。
+
+### 不想用 Actions？走 Cloudflare 网页端
+**计算 → Workers 和 Pages → 创建 → 连接到 GitHub** 这条路径不会跑我们的脚本，需要先拿到 `database_id` 填进 `wrangler.toml`。两种方式任选：
+
+- 本地跑一次：`npm install && npm run setup`（需要 Cloudflare 凭据，会自动建库并把 id 写回文件，然后提交这个改动）
+- 或手动：控制台建好 D1 后复制 id，替换 `wrangler.toml` 里的 `database_id`
+
+之后同样在设置里绑定 `BUCKET`（R2 桶）和 `DB`（D1 库）两个变量即可，名字必须一致。
 
 ## 三、让下载变成「真·直链」
 
@@ -171,8 +175,14 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 **忘记管理员密码？**
 环境变量 `ADMIN_PASSWORD` 优先级最高：去 Worker 设置里改这个机密值即可（改完重新部署生效）；删掉它就回落到数据库里 UI 改过的密码。
 
+**Actions 报权限错误 / 建库失败？**
+多半是 API 令牌权限不够。确认令牌有 **Workers Scripts: 编辑**、**D1: 编辑**、**R2: 编辑** 三项（用「编辑 Cloudflare Workers」模板最省事），并且 `CLOUDFLARE_ACCOUNT_ID` 填的是账户 ID 而不是区域 ID。
+
+**重跑工作流会重复建库或丢数据吗？**
+不会。脚本先查同名数据库，存在就复用；R2 桶已存在也直接跳过。只有首次会创建。
+
 **D1 / R2 名字必须叫 filecove 吗？**
-不是。桶名和数据库名随意，只要第 6 步绑定时选对就行；代码里固定的是**绑定变量名** `BUCKET` 和 `DB`。
+不是。改 `wrangler.toml` 里的 `bucket_name` / `database_name`（或用环境变量 `R2_BUCKET_NAME` / `D1_DATABASE_NAME` 覆盖），后续 Actions 会按新名字自动创建。代码里固定不变的是**绑定变量名** `BUCKET` 和 `DB`。
 
 ---
 
@@ -181,20 +191,23 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 ```bash
 npm install
 cp .dev.vars.example .dev.vars   # 填自己的密钥
+npm run setup                    # 自动建 D1/R2 并写回 database_id（需 Cloudflare 凭据）
 npx wrangler dev                 # 本地起服务
 npx wrangler deploy              # 命令行部署
 npm test                         # 端到端冒烟测试（本地模拟 D1/R2，不需要真实账号）
 ```
 
-测试用本地模拟的 D1 与 R2 跑完整流程：登录、上传、直链、分享、密码、次数限制、限流封禁、同步、搜索、删除。
+测试用本地模拟的 D1 与 R2 跑完整流程：登录、上传、直链、分享、密码、次数限制、限流封禁、同步、搜索、删除；另有一组用伪造 wrangler 命令验证「自动建库并写回 id」的测试，都不需要真实 Cloudflare 账号。
 
-GitHub Actions 也已配好（`.github/workflows/deploy.yml`），在仓库 Settings 里配上 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID` 等 secrets，推 main 分支就自动部署。
+GitHub Actions 已配好（`.github/workflows/deploy.yml`）：配好 Secrets 后推 main 分支或手动 Run workflow，就会自动建库建桶并部署，详见第二章。
 
 ---
 
 ## 七、目录结构
 
 ```
+scripts/
+  setup-resources.mjs   自动创建/复用 D1 与 R2，并写回 database_id
 src/
   index.js     路由与后台接口
   storage.js   存储抽象层（R2 绑定 / S3 兼容）
