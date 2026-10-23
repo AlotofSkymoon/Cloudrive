@@ -1,6 +1,6 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v0.3.5**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v0.4.0**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -63,7 +63,21 @@
 
 跑完在 **Run workflow 的 Summary** 里能看到用到的库名和桶名。数据库已存在就复用，重跑不会重复创建。
 
-### 5. 最后两件必须手动做的事
+### 5.（可选）让 Actions 代管部分变量
+默认**不需要做这一步**。仓库变量 `PRESET_VARS` 留空时，Actions 一个变量都不写，你在控制台改的值（比如 `PUBLIC_BASE_URL`）每次部署都会完整保留。
+
+想让 Actions 代管时，到 **Settings → Secrets and variables → Actions → Variables** 添加 `PRESET_VARS`，每行一个 `K=V`：
+
+```
+PUBLIC_BASE_URL=https://cdn.example.com
+DOWNLOAD_MODE=auto
+```
+
+只有写在这里的变量会覆盖控制台的同名变量，**其余变量不受影响**。密钥（如 `ADMIN_PASSWORD`）不在这个名单里，请继续用 Secrets。
+
+同理，密钥也遵循「控制台优先」：`ADMIN_PASSWORD` 若只在控制台配过、GitHub Secret 没配，Actions 会**跳过不覆盖**，也不会因此报错。
+
+### 6. 最后两件必须手动做的事
 自动化只到部署为止，这两步要你自己的域名，必须手动：
 
 1. **绑定自定义域名**：Cloudflare → **Workers 和 Pages → filecove → 设置 → 域和路由 → 添加 → 自定义域**，例如 `pan.yourdomain.com`（`workers.dev` 域名国内常打不开）。
@@ -207,6 +221,14 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 4. **浏览器缓存了登录页** —— 登录成功已改为 `location.replace('/?_=时间戳')` 强制绕开缓存；还不行就硬刷新（Ctrl/Cmd + Shift + R）或清一下该站点的 Cookie。
 
 打开 `/api/status` 可以直接看到 `hasAdmin`（是否已配置密码）、`hasEnvAdmin`、`hasDbAdmin`、`https`，不需要登录。
+
+**重新部署会不会把我改的配置冲掉？**
+不会，这是 v0.4.0 的改动重点。`wrangler.toml` 里**刻意不声明 `[vars]`**——因为 wrangler deploy 会把配置文件里的 vars 同步到 Worker，一旦声明，你在控制台改的值每次部署都会被冲回默认值。现在：
+
+- 文本变量（如 `PUBLIC_BASE_URL`）：部署完全不碰，改一次永久生效
+- 密钥（如 `ADMIN_PASSWORD`）：GitHub Secret 配了才覆盖；只在控制台配过则原样保留
+
+想让 Actions 代管，见第 5 步的 `PRESET_VARS`。
 
 **忘记管理员密码？**
 环境变量 `ADMIN_PASSWORD` 优先级最高：去 Worker 设置里改这个机密值即可（改完重新部署生效）；删掉它就回落到数据库里 UI 改过的密码。

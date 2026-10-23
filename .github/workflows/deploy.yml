@@ -28,13 +28,14 @@ jobs:
           missing=()
           [ -z "$CF_API_TOKEN" ] && missing+=("CLOUDFLARE_API_TOKEN")
           [ -z "$CF_ACCOUNT_ID" ] && missing+=("CLOUDFLARE_ACCOUNT_ID")
-          [ -z "$ADMIN_PASSWORD" ] && missing+=("ADMIN_PASSWORD")
+          # ADMIN_PASSWORD 也可以在 Cloudflare 控制台直接配（那样部署会保留它），
+          # 所以这里只把两个 Cloudflare 凭据列为硬性必需，密码交给后面的步骤判断。
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::缺少 Secrets：${missing[*]}"
             echo "请到仓库 Settings → Secrets and variables → Actions 添加后重跑。"
             exit 1
           fi
-          echo "Secrets 检查通过"
+          echo "Secrets 检查通过" 
 
       - uses: actions/setup-node@v4
         with:
@@ -68,17 +69,32 @@ jobs:
         id: secret_names
         run: node scripts/ci-secrets.mjs
         env:
+          # 用于查询 Worker 上已有哪些密钥，好把控制台配的值保留下来
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_WORKER_NAME: filecove
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
 
+      # 可选：把 PRESET_VARS（仓库变量，非机密）里的 K=V 写入 Worker。
+      # 留空则一个变量都不写 —— 控制台改过的值（如 PUBLIC_BASE_URL）完整保留。
+      # wrangler.toml 里同样没有声明 [vars]，所以部署本身也不会覆盖它们。
+      - name: 计算需要写入的变量
+        id: preset_vars
+        run: node scripts/preset-vars.mjs
+        env:
+          PRESET_VARS: ${{ vars.PRESET_VARS }}
+
+      # 只把「确实配了值」的密钥列进上传名单；Worker 上已有而 GitHub 没配的会保留原值。
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           secrets: ${{ steps.secret_names.outputs.names }}
+          vars: ${{ steps.preset_vars.outputs.names }}
         env:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
@@ -91,4 +107,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1 数据库：\`${{ steps.resources.outputs.database-name || 'filecove' }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- R2 存储桶：\`${{ steps.resources.outputs.bucket-name || 'filecove' }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- 别忘了在 Worker 设置里绑定自定义域名，并配置 PUBLIC_BASE_URL 让下载走直链" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 本次部署不会覆盖控制台里的任何变量（wrangler.toml 未声明 vars）。" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 若想让 Actions 代管变量，把 K=V 填进仓库变量 PRESET_VARS。" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "别忘了在 Worker 设置里绑定自定义域名，并配置 PUBLIC_BASE_URL 让下载走直链。" >> "$GITHUB_STEP_SUMMARY"

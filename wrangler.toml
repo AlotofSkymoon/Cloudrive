@@ -15,35 +15,42 @@ binding = "DB"
 database_name = "filecove"
 database_id = "待自动填充（Actions / npm run setup 会自动写入）"
 
-[vars]
-# 存储驱动：auto（有 S3_* 用 S3，否则用 R2 绑定）/ r2 / s3
-STORAGE_DRIVER = "auto"
-
+# —— 关于环境变量（重要）——
+# 这里【故意不声明 [vars]】。wrangler deploy 会把配置文件里的 vars 同步到 Worker，
+# 一旦声明，你在控制台改的值（比如 PUBLIC_BASE_URL）每次部署都会被冲回默认值。
+#
+# 不声明 = 部署不会覆盖你在控制台配的任何变量，改一次永久生效。
+# 所有变量在代码里都有默认值，不配也能跑（见下面注释里的默认值）。
+#
+# 想让 Actions 帮你写入变量的话，把 K=V 填进仓库变量 PRESET_VARS，例如：
+#   PUBLIC_BASE_URL=https://cdn.example.com
+#   DOWNLOAD_MODE=auto
+# 留空则完全不碰，控制台的值 100% 保留。
+#
+# 可在 Workers → 设置 → 变量和机密 里添加（文本类型）：
+#
 # —— 直链相关（最关键）——
-# 桶的公网访问域名（R2: r2.dev 域名或自定义域；S3: 公有读 Endpoint/CDN 域名）
-# 填了它，下载就是 302 到真正的对象直链，完全不经过 Worker
-PUBLIC_BASE_URL = ""
-# auto=有公网域名就用直链，没有就预签名直链，再不行才走 Worker 代理
-# public=强制走 PUBLIC_BASE_URL / signed=强制预签名 / proxy=强制 Worker 代理
-DOWNLOAD_MODE = "auto"
-
+# PUBLIC_BASE_URL  桶的公网域名；填了下载就 302 到真直链，不经过 Worker（默认空）
+# DOWNLOAD_MODE    auto / public / signed / proxy（默认 auto）
+#
 # —— 安全与限流 ——
-IP_MAX_DOWNLOADS = "30"      # 单 IP 每窗口下载次数上限
-IP_WINDOW_SECONDS = "3600"
-BAN_MINUTES = "60"           # 超限自动封禁时长
-MONTHLY_TRAFFIC_LIMIT = "0"  # 月度流量上限（字节），0 不限
-
+# IP_MAX_DOWNLOADS        单 IP 每窗口下载上限（默认 30）
+# IP_WINDOW_SECONDS       窗口秒数（默认 3600）
+# BAN_MINUTES             超限自动封禁时长（默认 60）
+# MONTHLY_TRAFFIC_LIMIT   月度流量上限字节，0 不限（默认 0）
+#
 # —— 上传 ——
-UPLOAD_MAX_SIZE = "107374182400"     # 100GB
-MULTIPART_THRESHOLD = "104857600"    # 超过 100MB 走分片直传
-MULTIPART_PART_SIZE = "16777216"     # 16MB/片
-
+# UPLOAD_MAX_SIZE         （默认 107374182400，即 100GB）
+# MULTIPART_THRESHOLD     （默认 104857600，超 100MB 走分片）
+# MULTIPART_PART_SIZE     （默认 16777216，16MB/片）
+#
 # —— 人机验证（可选）——
-TURNSTILE_SITEKEY = ""
-TURNSTILE_ENABLED = "0"
-
-# —— R2 绑定模式下用于后台展示的桶名（可选）——
-R2_BUCKET_NAME = "filecove"
+# TURNSTILE_SITEKEY  （默认空）
+# TURNSTILE_ENABLED  （默认 0）
+#
+# —— 存储 ——
+# STORAGE_DRIVER   auto / r2 / s3（默认 auto）
+# R2_BUCKET_NAME   后台展示用的桶名（默认 "filecove"）
 
 # 以下敏感项用 wrangler secret 设置，不要写进仓库：
 # npx wrangler secret put ADMIN_PASSWORD
