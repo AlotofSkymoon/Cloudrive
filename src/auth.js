@@ -53,9 +53,12 @@ export async function hashPassword(password, salt) {
   return await sha256Hex(`${salt}:${password}:filecove`);
 }
 
+// 环境变量/Secret 常常在复制时混进首尾空白或换行，统一去掉再比对
+const clean = (v) => String(v ?? '').trim();
+
 export async function adminPasswordHash(env) {
   // 环境变量优先，其次数据库（UI 里改过密码的情况）
-  if (env.ADMIN_PASSWORD) return await hashPassword(env.ADMIN_PASSWORD, 'env');
+  if (clean(env.ADMIN_PASSWORD)) return await hashPassword(clean(env.ADMIN_PASSWORD), 'env');
   const row = await db.get(env, "SELECT v FROM settings WHERE k = 'admin_hash'");
   const saltRow = await db.get(env, "SELECT v FROM settings WHERE k = 'admin_salt'");
   return row && saltRow ? row.v : null;
@@ -64,8 +67,8 @@ export async function adminPasswordHash(env) {
 export async function checkAdminPassword(env, password) {
   const expected = await adminPasswordHash(env);
   if (!expected) return false;
-  const salt = env.ADMIN_PASSWORD ? 'env' : (await db.get(env, "SELECT v FROM settings WHERE k = 'admin_salt'"))?.v || '';
-  const candidate = await hashPassword(password, salt);
+  const salt = clean(env.ADMIN_PASSWORD) ? 'env' : (await db.get(env, "SELECT v FROM settings WHERE k = 'admin_salt'"))?.v || '';
+  const candidate = await hashPassword(String(password ?? '').trim(), salt);
   return timingSafeEqual(candidate, expected);
 }
 

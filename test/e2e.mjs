@@ -183,6 +183,19 @@ const bad = await r2.json();
 assert('未配置密码时登录给出原因', bad.ok === false && bad.reason === 'no_password', JSON.stringify(bad));
 assert('未配置密码时不下发会话 Cookie', !r2.headers.get('set-cookie'));
 
+// 16.5 密码首尾带空白（从控制台复制时很容易带上）也能登录成功
+const env3 = { ...env, ADMIN_PASSWORD: '  test123\n', DB: new FakeD1() };
+const call3 = (path, opts = {}) =>
+  worker.fetch(new Request(origin + path, { ...opts, headers: { ...(opts.headers || {}) } }), env3, ctx);
+r = await call3('/api/login', { method: 'POST', body: JSON.stringify({ password: 'test123' }) });
+let body3 = await r.text();
+assert('密码含首尾空白时仍可登录', JSON.parse(body3).ok === true, body3);
+r = await call3('/api/login', { method: 'POST', body: JSON.stringify({ password: '  test123  ' }) });
+assert('输入侧带空白也能登录', (await r.json()).ok === true);
+r = await call3('/api/login', { method: 'POST', body: JSON.stringify({ password: 'wrong' }) });
+const shape = await r.json();
+assert('密码错误时给出密码形态提示', shape.ok === false && shape.hint && shape.hint.hasLeadingTrailingSpace === true, JSON.stringify(shape));
+
 // 17. HTTP 访问时不加 Secure，避免浏览器丢弃 Cookie
 const httpRes = await worker.fetch(
   new Request('http://pan.example.com/api/login', { method: 'POST', body: JSON.stringify({ password: 'test123' }) }),

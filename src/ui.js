@@ -154,7 +154,13 @@ async function login(){
     location.replace('/?_='+Date.now());
     return false;
   }
-  show($err,'bad',d.reason==='no_password'?('<b>'+(d.msg||'未设置管理员密码')+'</b>'):(d.msg||('登录失败（HTTP '+r.status+'）')));
+  var html=d.reason==='no_password'?('<b>'+(d.msg||'未设置管理员密码')+'</b>'):(d.msg||('登录失败（HTTP '+r.status+'）'));
+  if(d.hint&&(d.hint.hasLeadingTrailingSpace||d.hint.hasLineBreak)){
+    html+='<br><b>提示：</b>Worker 里存的密码首尾带有空格或换行（长度 '+d.hint.length+'，去空白后 '+d.hint.trimmedLength+'）。从控制台复制 Secret 时很容易混进去，请删掉重新粘贴并重新部署。';
+  }else if(d.hint){
+    html+='<br>已按首尾去空白后的结果比对；若仍失败，请确认用的是 Worker 变量 <code>ADMIN_PASSWORD</code> 里那个值，且改完已重新部署。';
+  }
+  show($err,'bad',html);
   return false;
 }
 probe();

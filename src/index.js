@@ -66,7 +66,7 @@ export default {
       try {
         body = await request.json();
       } catch {}
-      const hasAdmin = !!(env.ADMIN_PASSWORD || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")));
+      const hasAdmin = !!(String(env.ADMIN_PASSWORD || '').trim() || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")));
       if (!hasAdmin) {
         return json(
           {
@@ -77,16 +77,17 @@ export default {
           401
         );
       }
-      const ok = await auth.checkAdminPassword(env, String(body.password || ''));
+      // 去首尾空白：从控制台复制 Secret 时很容易带上空格/换行，肉眼完全看不出来
+      const ok = await auth.checkAdminPassword(env, String(body.password || '').trim());
       if (!ok) {
         // 环境变量优先级高于数据库里 UI 改过的密码，这时用新密码登不上会让人困惑
         const hasDbPwd = !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"));
-        const shadowed = !!env.ADMIN_PASSWORD && hasDbPwd;
+        const shadowed = !!String(env.ADMIN_PASSWORD || '').trim() && hasDbPwd;
         let msg = isHttps(request)
           ? '密码错误，请重新输入'
           : '密码错误（注意：当前是 HTTP 访问，登录状态可能无法保存，请改用 HTTPS）';
         if (shadowed) msg += '。注意：Worker 变量 ADMIN_PASSWORD 已设置，它的优先级高于后台「设置」里改过的密码，请以环境变量为准。';
-        return json({ ok: false, reason: 'bad_password', shadowed, msg }, 401);
+        return json({ ok: false, reason: 'bad_password', shadowed, msg, hint: passwordShape(env.ADMIN_PASSWORD) }, 401);
       }
       const token = await auth.signToken(env, { role: 'admin' }, 60 * 60 * 12);
       return json({ ok: true }, 200, { 'Set-Cookie': auth.cookieHeader('adm', token, { secure: isHttps(request) }) });
@@ -102,8 +103,8 @@ export default {
       const admin = !!(data && data.role === 'admin');
       return json({
         ok: true,
-        hasAdmin: !!(env.ADMIN_PASSWORD || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))),
-        hasEnvAdmin: !!env.ADMIN_PASSWORD,
+        hasAdmin: !!(String(env.ADMIN_PASSWORD || '').trim() || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))),
+        hasEnvAdmin: !!String(env.ADMIN_PASSWORD || '').trim(),
         hasDbAdmin: !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")),
         // 登录态相关：能区分「密码不对」和「Cookie 没被接受」
         admin,
@@ -142,6 +143,19 @@ export default {
     return renderErrorPage('404', '页面不存在：' + p);
   },
 };
+
+
+// 描述「正确密码」的形态，帮用户核对是不是复制时混进了空白字符。绝不包含密码内容。
+function passwordShape(pwd) {
+  const s = String(pwd || '');
+  if (!s) return null;
+  return {
+    length: s.length,
+    trimmedLength: s.trim().length,
+    hasLeadingTrailingSpace: s.length !== s.trim().length,
+    hasLineBreak: /[\r\n]/.test(s),
+  };
+}
 
 async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
   let m;
