@@ -301,6 +301,11 @@ async function api(p,opt){
   if(!r.ok){toast(d.msg||('请求失败 '+r.status));return null;}
   return d;
 }
+// 加载失败时给出可重试的提示，绝不让页面永远停在「加载中…」
+function failBox(id,msg){
+  var el=$(id);if(!el)return;
+  el.innerHTML='<div class="empty">'+esc(msg)+'<div style="margin-top:10px"><button style="padding:6px 12px" onclick="location.reload()">重试</button></div></div>';
+}
 function tab(name){
   var names=['files','shares','logs','bans','settings'];
   for(var i=0;i<names.length;i++){
@@ -323,7 +328,8 @@ async function loadFiles(reset){
   var u='/api/files?limit='+PAGE;
   if(Q)u+='&q='+encodeURIComponent(Q);
   if(OFFSET)u+='&offset='+OFFSET;
-  var d=await api(u);if(!d)return;
+  var d=await api(u);
+  if(!d){failBox('fileList','文件列表加载失败');return;}
   FILES=(OFFSET?FILES:[]).concat(d.files||[]);SEL={};
   OFFSET=d.next||0;
   renderFiles();
@@ -356,11 +362,20 @@ function kindIcon(f){
 }
 function thumbCell(f,i){
   if(isImg(f)){
+    // 注意：别在 HTML 属性里内联带引号的 JS 字符串，转义很容易写坏整段脚本。
+    // 这里只挂一个不带参数的处理器，具体逻辑放到下面的函数里。
     return '<img class="thumb" loading="lazy" src="/preview/'+esc(f.id)+'" alt="" '+
-           'onclick="zoom(\''+esc(f.id)+'\')" '+
-           'onerror="this.outerHTML=\'<div class=&quot;thumb-ph&quot;>'+kindIcon(f)+'</div>\'">';
+           'data-id="'+esc(f.id)+'" onerror="thumbFail(this)">';
   }
   return '<div class="thumb-ph">'+kindIcon(f)+'</div>';
+}
+// 缩略图加载不出来（比如直链没配好）就换成图标，不留破图
+function thumbFail(el){
+  if(!el||!el.parentNode)return;
+  var ph=document.createElement('div');
+  ph.className='thumb-ph';
+  ph.textContent='\uD83D\uDCCE';
+  el.parentNode.replaceChild(ph,el);
 }
 function renderFiles(){
   var h='';
@@ -379,6 +394,8 @@ function renderFiles(){
     h+='</table>';
   }
   $('fileList').innerHTML=h;
+  var ths=document.querySelectorAll('.thumb');
+  for(var t=0;t<ths.length;t++){ths[t].onclick=function(){zoom(this.getAttribute('data-id'));};}
   $('moreBox').innerHTML=OFFSET?('<button style="width:100%;margin-top:12px" onclick="loadMore()">加载更多</button>'):'';
   var ck=document.querySelectorAll('.chk');
   for(var j=0;j<ck.length;j++){ck[j].onchange=function(){SEL[this.dataset.i]=this.checked;updateSelBar();};}
@@ -490,7 +507,9 @@ async function createShare(id){
   loadShares();
 }
 async function loadShares(){
-  var d=await api('/api/shares');if(!d)return;SHARES=d.shares||[];
+  var d=await api('/api/shares');
+  if(!d){failBox('shareList','分享列表加载失败');return;}
+  SHARES=d.shares||[];
   var h='';
   if(!SHARES.length){h='<div class="empty">还没有分享链接</div>';}
   else{
@@ -514,7 +533,8 @@ async function delShare(code){if(!confirm('删除这个分享链接？'))return;
 
 /* ---------- 记录 / 封禁 ---------- */
 async function loadLogs(){
-  var d=await api('/api/logs');if(!d)return;
+  var d=await api('/api/logs');
+  if(!d){failBox('logList','下载记录加载失败');return;}
   var h='<table><tr><th>时间</th><th>文件</th><th>IP</th><th style="width:70px">地区</th><th style="width:80px">大小</th><th style="width:60px"></th></tr>';
   var arr=d.logs||[];
   if(!arr.length){h='<div class="empty">暂无下载记录</div>';}
@@ -530,7 +550,8 @@ async function banIp(ip){
   if(d){toast('已封禁');if($('pane-bans').classList.contains('on'))loadBans();}
 }
 async function loadBans(){
-  var d=await api('/api/bans');if(!d)return;
+  var d=await api('/api/bans');
+  if(!d){failBox('banList','封禁列表加载失败');return;}
   var arr=d.bans||[],h='';
   if(!arr.length){h='<div class="empty">当前没有封禁记录</div>';}
   else{h='<table><tr><th>IP</th><th>原因</th><th style="width:120px">解封时间</th><th style="width:70px"></th></tr>';
@@ -547,7 +568,9 @@ function srcTag(k){
   return '<span class="tag" style="margin-left:6px">'+esc(m)+'</span>';
 }
 async function loadCfg(){
-  var d=await api('/api/config');if(!d)return;CFG=d.config||{};CFG_SRC=d.sources||{};
+  var d=await api('/api/config');
+  if(!d){failBox('cfg','设置加载失败');return;}
+  CFG=d.config||{};CFG_SRC=d.sources||{};
   var c=CFG;
   $('cfg').innerHTML=
    '<div><label>下载直链域名'+srcTag('PUBLIC_BASE_URL')+'</label><input id="c-base" value="'+esc(c.publicBaseUrl||'')+'" placeholder="cdn.example.com">'+
@@ -575,7 +598,7 @@ async function saveCfg(){
 }
 async function logout(){await fetch('/api/logout',{method:'POST'});location.href='/';}
 async function loadStats(){
-  var d=await api('/api/stats');if(!d)return;
+  var d=await api('/api/stats');if(!d){$('stats').innerHTML='<span class="tag">统计加载失败</span>';return;}
   $('stats').innerHTML='<span class="tag">文件 '+d.files+'</span> <span class="tag">分享 '+d.shares+'</span> <span class="tag">下载 '+d.downloads+'</span> <span class="tag">本月流量 '+fmt(d.traffic)+(d.limit?' / '+fmt(d.limit):'')+'</span>';
 }
 initDrop();loadStats();tab('files');
