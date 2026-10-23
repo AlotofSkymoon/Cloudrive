@@ -498,7 +498,16 @@ var NEED_TS=${o.needTurnstile ? 'true' : 'false'};
 var tsToken='';
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},2000);}
 function onTsLoad(){if(NEED_TS&&window.turnstile){turnstile.render('#cf-ts',{sitekey:'${o.turnstileSitekey}',callback:function(t){tsToken=t;}});}}
-function prevFail(){var p=document.getElementById('pv');if(p){p.className='preview';p.textContent='预览不可用 · 点击下载';}}
+function prevFail(){
+  var p=document.getElementById('pv');if(!p)return;
+  var img=p.querySelector('img');
+  if(img&&!img.getAttribute('data-retried')){
+    img.setAttribute('data-retried','1');
+    setTimeout(function(){img.src='/raw/'+CODE+'?r='+Date.now();},500);
+    return;
+  }
+  p.className='preview';p.textContent='预览不可用 · 点击下载';
+}
 function zoomPrev(){
   var lb=document.getElementById('lightbox');if(!lb)return;
   lb.innerHTML='<img src="/raw/'+CODE+'" alt="">';
@@ -755,13 +764,17 @@ async function loadStats(){
 /* ---------- 文件 ---------- */
 var IMG_EXT=/\\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif)$/i;
 function isImg(f){return /^image\\//i.test(f.mime||'')||IMG_EXT.test(f.name||'');}
-async function loadFiles(reset){
+async function loadFiles(reset,retry){
   if(reset)OFFSET=0;
   var u='/api/files?limit='+PAGE;
   if(Q)u+='&q='+encodeURIComponent(Q);
   if(OFFSET)u+='&offset='+OFFSET;
   var d=await api(u);
-  if(!d){failBox('fileList','文件列表加载失败');return;}
+  if(!d){
+    // 先自动重试一次，仍失败才给提示（D1 冷启动偶尔会慢一下）
+    if(!retry){await new Promise(function(r){setTimeout(r,600);});return loadFiles(reset,true);}
+    failBox('fileList','文件列表加载失败');return;
+  }
   FILES=(OFFSET?FILES:[]).concat(d.files||[]);SEL={};
   OFFSET=d.next||0;
   renderFiles();
@@ -782,9 +795,16 @@ async function syncBucket(){
 }
 $('sync').onclick=syncBucket;
 // 缩略图加载不出来就换成类型标签，不留破图
+// 首次失败先重试一次（换个 query 绕开缓存），再失败才退回后缀标签
 function thumbFail(el){
   if(!el||!el.parentNode)return;
   var id=el.getAttribute('data-id');
+  if(!el.getAttribute('data-retried')){
+    el.setAttribute('data-retried','1');
+    var t=setTimeout(function(){el.src='/preview/'+id+'?r='+Date.now();},400);
+    el.setAttribute('data-timer',t);
+    return;
+  }
   var f=null;for(var i=0;i<FILES.length;i++){if(FILES[i].id===id)f=FILES[i];}
   var s=document.createElement('span');
   s.className='ext';s.textContent=extOf(f?f.name:'');
@@ -1117,11 +1137,26 @@ async function loadCfg(){
    field('Turnstile','分享页下载前过一次验证','<button class="switch'+(ton?' on':'')+'" id="c-ton"></button><span class="unit" id="c-ton-txt">'+(ton?'已开启':'已关闭')+'</span>')+
    field('Sitekey','',numInput('c-tkey',c.turnstileSitekey||'',''),'TURNSTILE_SITEKEY')+
    field('Secret','',numInput('c-tsec',c.turnstileSecret||'',''),'TURNSTILE_SECRET')+
+   '<div class="sec-title">上传</div>'+
+   field('单文件上限','',numInput('c-umax',Math.round(c.uploadMaxSize/1073741824),'GB',' style="max-width:64px"'),'UPLOAD_MAX_SIZE')+
+   field('分片阈值','超过这个大小走分片直传',numInput('c-mth',Math.round(c.multipartThreshold/1048576),'MB',' style="max-width:64px"'),'MULTIPART_THRESHOLD')+
+   field('分片大小','',numInput('c-mps',Math.round(c.multipartPartSize/1048576),'MB',' style="max-width:64px"'),'MULTIPART_THRESHOLD')+
+   '<div class="sec-title">存储</div>'+
+   field('驱动','切到 S3 需要把下面四项填全',
+     '<select id="c-driver">'+[['auto','auto — 有 S3 配置用 S3，否则 R2 绑定'],['r2','r2 — 只用 R2 绑定'],['s3','s3 — 只用 S3 兼容']].map(function(m){
+       return '<option value="'+m[0]+'"'+(c.storageDriver===m[0]?' selected':'')+'>'+m[1]+'</option>';}).join('')+'</select>','STORAGE_DRIVER')+
+   field('R2 桶名','R2 绑定模式下仅用于显示',numInput('c-r2b',c.r2BucketName||'',''),'R2_BUCKET_NAME')+
+   field('S3 Endpoint','B2 / COS / OSS / MinIO / R2 的 S3 API 地址',numInput('c-s3e',c.s3Endpoint||'',''),'S3_ENDPOINT')+
+   field('S3 桶','',numInput('c-s3b',c.s3Bucket||'',''),'S3_BUCKET')+
+   field('S3 区域','R2 填 auto',numInput('c-s3r',c.s3Region||'auto',''),'S3_REGION')+
+   field('S3 Access Key','留空则不改动'+(c.s3HasKey?'（已设置）':''),'<input id="c-s3ak" type="text" placeholder="留空不改" style="max-width:220px">')+
+   field('S3 Secret Key','留空则不改动','<input id="c-s3sk" type="password" placeholder="留空不改" style="max-width:220px">')+
    '<div class="sec-title">管理员</div>'+
    field('登录密码','留空表示不修改','<input id="c-pwd" type="password" placeholder="留空不改" style="max-width:220px">');
   var sw=$('c-ton');
   sw.onclick=function(){var on=sw.classList.toggle('on');$('c-ton-txt').textContent=on?'已开启':'已关闭';markDirty();};
-  var ids=['c-base','c-mode','c-ipmax','c-win','c-ban','c-traffic','c-tkey','c-tsec','c-pwd'];
+  var ids=['c-base','c-mode','c-ipmax','c-win','c-ban','c-traffic','c-tkey','c-tsec','c-pwd',
+           'c-umax','c-mth','c-mps','c-driver','c-r2b','c-s3e','c-s3b','c-s3r','c-s3ak','c-s3sk'];
   for(var i=0;i<ids.length;i++){var el=$(ids[i]);if(el)el.addEventListener('input',markDirty);if(el&&el.tagName==='SELECT')el.addEventListener('change',markDirty);}
   DIRTY=false;updateSave();
   $('s-mode').textContent='直链 '+(c.downloadMode||'auto');
@@ -1137,7 +1172,13 @@ $('saveCfg').onclick=async function(){
     banMinutes:Number($('c-ban').value)||60,
     monthlyTrafficLimit:Math.round((Number($('c-traffic').value)||0)*1073741824),
     turnstileSitekey:$('c-tkey').value,turnstileSecret:$('c-tsec').value,
-    turnstileEnabled:ton,adminPassword:$('c-pwd').value}});
+    turnstileEnabled:ton,adminPassword:$('c-pwd').value,
+    uploadMaxSize:Math.round((Number($('c-umax').value)||100)*1073741824),
+    multipartThreshold:Math.round((Number($('c-mth').value)||100)*1048576),
+    multipartPartSize:Math.round((Number($('c-mps').value)||16)*1048576),
+    storageDriver:$('c-driver').value,r2BucketName:$('c-r2b').value,
+    s3Endpoint:$('c-s3e').value,s3Bucket:$('c-s3b').value,s3Region:$('c-s3r').value,
+    s3AccessKeyId:$('c-s3ak').value,s3SecretAccessKey:$('c-s3sk').value}});
   if(d){toast('设置已保存');DIRTY=false;loadCfg();}
 };
 $('reloadCfg').onclick=function(){loadCfg();};

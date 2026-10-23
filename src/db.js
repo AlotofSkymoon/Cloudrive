@@ -1,4 +1,4 @@
-import { normalizeOrigin } from './util.js';
+import { normalizeOrigin, nowSec } from './util.js';
 
 // D1 数据层：建表、查询、配置读写
 const SCHEMA = `
@@ -64,6 +64,48 @@ CREATE TABLE IF NOT EXISTS settings (
 
 const ready = new WeakSet();
 
+// 默认配置：首次运行时写进数据库，之后一律以网页里改的值为准。
+// 这样绝大多数配置不需要碰环境变量，也不会被部署冲掉。
+// 改这里请同步 scripts/preset-vars.mjs 里的说明。
+export const SEED_DEFAULTS = {
+  STORAGE_DRIVER: 'auto',
+  R2_BUCKET_NAME: 'filecove',
+  DOWNLOAD_MODE: 'auto',
+  IP_MAX_DOWNLOADS: '30',
+  IP_WINDOW_SECONDS: '3600',
+  BAN_MINUTES: '60',
+  MONTHLY_TRAFFIC_LIMIT: '0',
+  UPLOAD_MAX_SIZE: '107374182400',
+  MULTIPART_THRESHOLD: '104857600',
+  MULTIPART_PART_SIZE: '16777216',
+  TURNSTILE_ENABLED: '0',
+};
+
+// 只补缺失的键，已有的（用户改过的）一律不动
+export async function seedConfig(env) {
+  if (!env.DB) return;
+  const rows = await all(env, 'SELECT k FROM settings');
+  const have = new Set(rows.map((r) => r.k));
+  for (const [k, v] of Object.entries(SEED_DEFAULTS)) {
+    if (have.has(k)) continue;
+    await run(env, 'INSERT INTO settings (k, v, updated_at) VALUES (?, ?, ?)', k, v, nowSec());
+  }
+}
+
+// 把数据库里的设置合并进 env，让各处代码照旧读 env.X 就能拿到网页里配的值。
+// ADMIN_PASSWORD 例外：环境变量优先级更高（已有逻辑如此），不覆盖。
+export async function envWithSettings(env) {
+  const s = await allSettings(env);
+  if (!s || !Object.keys(s).length) return env;
+  const merged = Object.assign(Object.create(null), env);
+  for (const [k, v] of Object.entries(s)) {
+    if (k === 'admin_hash') continue;
+    if (k === 'ADMIN_PASSWORD') continue;
+    merged[k] = v;
+  }
+  return merged;
+}
+
 export async function init(env) {
   const db = env.DB;
   if (!db || ready.has(db)) return;
@@ -72,6 +114,8 @@ export async function init(env) {
     if (s) await db.prepare(s).run();
   }
   ready.add(db);
+  // 建表后立刻补上默认配置，之后一切以网页/数据库为准
+  await seedConfig(env).catch(() => {});
 }
 
 export async function all(env, sql, ...params) {
@@ -113,6 +157,12 @@ export async function configSources(env) {
     TURNSTILE_SITEKEY: one('TURNSTILE_SITEKEY'),
     TURNSTILE_SECRET: one('TURNSTILE_SECRET'),
     TURNSTILE_ENABLED: one('TURNSTILE_ENABLED'),
+    UPLOAD_MAX_SIZE: one('UPLOAD_MAX_SIZE'),
+    IP_WINDOW_SECONDS: one('IP_WINDOW_SECONDS'),
+    STORAGE_DRIVER: one('STORAGE_DRIVER'),
+    S3_ENDPOINT: one('S3_ENDPOINT'),
+    S3_BUCKET: one('S3_BUCKET'),
+    MULTIPART_THRESHOLD: one('MULTIPART_THRESHOLD'),
   };
 }
 
@@ -133,6 +183,14 @@ export async function config(env) {
     uploadMaxSize: Number(pick('UPLOAD_MAX_SIZE', '107374182400')) || 107374182400,
     multipartThreshold: Number(pick('MULTIPART_THRESHOLD', '104857600')) || 104857600,
     multipartPartSize: Number(pick('MULTIPART_PART_SIZE', '16777216')) || 16777216,
+    // 存储相关（网页里可改，密钥只告诉前端有没有填，不回传值）
+    storageDriver: pick('STORAGE_DRIVER', 'auto'),
+    r2BucketName: pick('R2_BUCKET_NAME', 'filecove'),
+    s3Endpoint: pick('S3_ENDPOINT', ''),
+    s3Bucket: pick('S3_BUCKET', ''),
+    s3Region: pick('S3_REGION', 'auto'),
+    s3ForcePathStyle: pick('S3_FORCE_PATH_STYLE', 'true') !== 'false',
+    s3HasKey: !!(pick('S3_ACCESS_KEY_ID', '') && pick('S3_SECRET_ACCESS_KEY', '')),
   };
 }
 

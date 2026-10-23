@@ -77,14 +77,20 @@ const parseEnvKeys = (txt) => {
   return out;
 };
 
-test('首次部署（读不到已有变量）会补上全部默认值', async () => {
+// v0.6.1 起默认配置由 Worker 写进 D1，Actions 不再往 Worker 铺默认值
+test('不配置时不铺任何默认值', async () => {
   const r = await run({ CF_API_BASE: '', CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_ACCOUNT_ID: '' });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /首次部署/);
-  const keys = parseNames(r.gh);
-  assert.ok(keys.includes('DOWNLOAD_MODE'), keys.join(','));
-  assert.ok(keys.includes('IP_MAX_DOWNLOADS'), keys.join(','));
-  assert.ok(!keys.includes('PUBLIC_BASE_URL'), '空值项不该被铺上去');
+  assert.deepEqual(parseNames(r.gh), []);
+  assert.match(r.out, /不铺默认值/);
+});
+
+test('即使 Worker 上一个变量都没有也不铺默认值', async (t) => {
+  const api = await mockVars([]);
+  t.after(api.close);
+  const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(parseNames(r.gh), []);
 });
 
 test('Worker 上已有的变量一个都不动', async (t) => {
@@ -100,8 +106,7 @@ test('Worker 上已有的变量一个都不动', async (t) => {
   assert.ok(!keys.includes('DOWNLOAD_MODE'), '已有值不该被重写');
   assert.ok(!keys.includes('IP_MAX_DOWNLOADS'), '已有值不该被重写');
   assert.ok(!keys.includes('BAN_MINUTES'), '已有值不该被重写');
-  // 缺失的仍然要补
-  assert.ok(keys.includes('MONTHLY_TRAFFIC_LIMIT'), keys.join(','));
+  assert.deepEqual(keys, [], '未声明时不应写入任何变量');
 });
 
 test('PRESET_VARS 显式声明的会写入，即使已有同名变量', async (t) => {
@@ -121,7 +126,7 @@ test('PRESET_VARS 显式声明的会写入，即使已有同名变量', async (t
   assert.match(r.out, /按 PRESET_VARS 覆盖/);
 });
 
-test('全部变量都在时不再写入任何东西', async (t) => {
+test('变量都在时不写入任何东西', async (t) => {
   const all = ['STORAGE_DRIVER', 'R2_BUCKET_NAME', 'DOWNLOAD_MODE', 'IP_MAX_DOWNLOADS', 'IP_WINDOW_SECONDS', 'BAN_MINUTES', 'MONTHLY_TRAFFIC_LIMIT', 'UPLOAD_MAX_SIZE', 'MULTIPART_THRESHOLD', 'MULTIPART_PART_SIZE', 'TURNSTILE_ENABLED'];
   const api = await mockVars(all);
   t.after(api.close);
@@ -136,8 +141,7 @@ test('读取失败时按首次部署处理，不中断流程', async (t) => {
   t.after(api.close);
   const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /首次部署/);
-  assert.ok(parseNames(r.gh).length > 0);
+  assert.equal(r.code, 0, '读取失败不该让流程中断');
 });
 
 test('secret / r2 绑定不会被误判为文本变量', async (t) => {

@@ -38,13 +38,16 @@ export default {
     }
 
     await db.init(env);
+    // 数据库里的设置覆盖环境变量，这样网页里改的配置一定生效，
+    // 也让「不配环境变量」成为默认用法（首次运行会自动写入默认值）
+    const env2 = await db.envWithSettings(env);
     let storage;
     try {
-      storage = createStorage(env);
+      storage = createStorage(env2);
     } catch (e) {
-      return renderErrorPage('存储未配置', String(e.message || e) + '。请绑定 R2 存储桶或配置 S3_* 变量。');
+      return renderErrorPage('存储未配置', String(e.message || e) + '。请绑定 R2 存储桶，或在设置页填写 S3 信息。');
     }
-    const cfg = await db.config(env);
+    const cfg = await db.config(env2);
     const url = new URL(request.url);
     const p = url.pathname.replace(/\/+$/, '') || '/';
     const method = request.method;
@@ -140,16 +143,21 @@ export default {
       if (!(await auth.isAdmin(request, env))) return new Response('未登录', { status: 401 });
       const row = await db.get(env, 'SELECT * FROM files WHERE id = ?', m[1]);
       if (!row) return new Response('文件不存在', { status: 404 });
-      // 有公网直链就直接 302，图片不占 Worker 流量
-      const pub = storage.publicUrl ? storage.publicUrl(row.key) : null;
-      if (pub) return redirect(pub);
-      if (storage.presignGet) {
-        const signed = await storage.presignGet(row.key, { expires: 3600 });
-        if (signed) return redirect(signed);
-      }
-      // 兜底：Worker 代理
+      // 预览走 Worker 代理，不走直链。
+      // 之前优先 302 到 PUBLIC_BASE_URL，一旦那个域名没公开访问（很常见），
+      // 缩略图就全部 404 —— 也就是「文件有时候加载不出来」。
+      // 预览流量很小，先保证一定能显示；下载仍然走直链。
       const obj = await storage.get(row.key);
-      if (!obj) return new Response('对象不存在', { status: 404 });
+      if (!obj) {
+        // 代理拿不到再退回直链，至少给浏览器一次机会
+        const pub = storage.publicUrl ? storage.publicUrl(row.key) : null;
+        if (pub) return redirect(pub);
+        if (storage.presignGet) {
+          const signed = await storage.presignGet(row.key, { expires: 3600 });
+          if (signed) return redirect(signed);
+        }
+        return new Response('对象不存在', { status: 404 });
+      }
       return new Response(obj.body, {
         headers: {
           'content-type': row.mime || obj.contentType || 'application/octet-stream',
@@ -161,7 +169,7 @@ export default {
     // ---------- 管理 API ----------
     if (p.startsWith(ADMIN_PREFIX)) {
       if (!(await auth.isAdmin(request, env))) return json({ ok: false, msg: '未登录' }, 401);
-      return await adminApi(request, env, ctx, storage, cfg, p, method, url);
+      return await adminApi(request, env2, ctx, storage, cfg, p, method, url);
     }
 
     return renderErrorPage('404', '页面不存在：' + p);
@@ -448,16 +456,40 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
       }
       b.publicBaseUrl = norm;
     }
+    // 网页能改的配置都在这里，存进数据库，优先级高于环境变量
     const map = {
       PUBLIC_BASE_URL: b.publicBaseUrl,
       DOWNLOAD_MODE: b.downloadMode,
       IP_MAX_DOWNLOADS: b.ipMaxDownloads,
+      IP_WINDOW_SECONDS: b.ipWindowSeconds,
       BAN_MINUTES: b.banMinutes,
       MONTHLY_TRAFFIC_LIMIT: b.monthlyTrafficLimit,
       TURNSTILE_SITEKEY: b.turnstileSitekey,
       TURNSTILE_SECRET: b.turnstileSecret,
       TURNSTILE_ENABLED: b.turnstileEnabled ? '1' : '0',
+      UPLOAD_MAX_SIZE: b.uploadMaxSize,
+      MULTIPART_THRESHOLD: b.multipartThreshold,
+      MULTIPART_PART_SIZE: b.multipartPartSize,
+      STORAGE_DRIVER: b.storageDriver,
+      R2_BUCKET_NAME: b.r2BucketName,
+      S3_ENDPOINT: b.s3Endpoint,
+      S3_BUCKET: b.s3Bucket,
+      S3_REGION: b.s3Region,
+      S3_FORCE_PATH_STYLE: b.s3ForcePathStyle,
+      S3_ACCESS_KEY_ID: b.s3AccessKeyId,
+      S3_SECRET_ACCESS_KEY: b.s3SecretAccessKey,
     };
+    // 保存前先把要写入的值合并起来试算一次，配置不完整就直接拒绝，
+    // 免得存进去之后整个网盘打不开
+    if (b.storageDriver === 's3') {
+      const probe = Object.assign({}, env, map);
+      const missing = ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'].filter(
+        (k) => !String((map[k] != null ? map[k] : probe[k]) || '').trim()
+      );
+      if (missing.length) {
+        return json({ ok: false, msg: '切到 S3 还缺：' + missing.join(' / ') }, 400);
+      }
+    }
     for (const [k, v] of Object.entries(map)) {
       if (v != null) await db.setSetting(env, k, v);
     }

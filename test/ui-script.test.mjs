@@ -53,7 +53,7 @@ test('列表请求失败时有失败提示，不会一直显示加载中', () =>
   const code = scriptsOf(adminHtml({ driver: 'R2', bucket: 'f' }))[0];
   assert.ok(/function failBox/.test(code), '应有 failBox');
   for (const [fn, id] of [['loadFiles', 'fileList'], ['loadShares', 'shareList'], ['loadLogs', 'logList'], ['loadBans', 'banList'], ['loadCfg', 'cfg']]) {
-    const re = new RegExp('function ' + fn + '\\([\\s\\S]{0,300}?failBox\\(');
+    const re = new RegExp('function ' + fn + '\\([\\s\\S]{0,700}?failBox\\(');
     assert.ok(re.test(code), `${fn} 失败时应调用 failBox 提示`);
   }
 });

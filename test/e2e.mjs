@@ -125,6 +125,15 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
   assert('未登录访问预览被拒绝', denied.status === 401, `状态 ${denied.status}`);
 }
 
+// 5.8 预览必须优先走 Worker 代理，不能先跳直链
+// （之前 302 到 PUBLIC_BASE_URL，一旦那个域名没公开访问，缩略图就全 404，
+//   表现就是「文件有时候加载不出来」）
+{
+  const cookieStr3 = Object.values(jar).filter(Boolean).join('; ');
+  const res = await worker.fetch(new Request(origin + `/preview/${fileId}`, { headers: { cookie: cookieStr3 } }), env, ctx);
+  assert('预览直接从 Worker 返回内容', res.status === 200, `状态 ${res.status}，location=${res.headers.get('location')}`);
+}
+
 // 5.7 配置接口要说明每个值来自哪里，方便判断「变量不见了会不会有影响」
 {
   const cfgRes = await (await call('/api/config')).json();
@@ -182,7 +191,8 @@ const dl = await r.json();
 assert('/direct 返回直链 JSON', dl.ok && dl.url.startsWith('https://cdn.example.com/'), JSON.stringify(dl));
 
 // 14. 限流封禁
-env.IP_MAX_DOWNLOADS = '1';
+// 配置现在以数据库为准（网页里改），所以这里直接写 settings 表
+await env.DB.prepare("INSERT INTO settings (k, v, updated_at) VALUES ('IP_MAX_DOWNLOADS', '1', 0)").run();
 r = await call(`/d/${code}?proxy=1`.replace('?proxy=1', ''), {});
 await env.DB.prepare('UPDATE shares SET downloads = 0, max_downloads = 0 WHERE code = ?').bind(code).run();
 await call(`/d/${code}`);

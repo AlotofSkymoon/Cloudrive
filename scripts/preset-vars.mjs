@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 /**
- * 往 Worker 写文本变量（vars），原则是「只补缺，不覆盖」。
+ * 往 Worker 写文本变量（vars）——默认什么都不写。
  *
- * 诉求来自两个方向：
- * - 部署后控制台能看见一整套默认配置，不用自己一个个加；
- * - 但又不能每次部署都把你在控制台改过的值冲回默认。
+ * v0.6.1 起配置改由「网页里改、存进 D1」：Worker 首次运行时会把默认值写进
+ * settings 表（见 src/db.js 的 SEED_DEFAULTS），之后一律以数据库里的值为准。
+ * 于是绝大多数场景根本不需要环境变量，也不会出现「部署把配置冲掉」的问题。
  *
- * 所以这里的规则是：
- *   1. Worker 上还没有的变量 → 用默认值补上（首次部署会看到一整排）
- *   2. Worker 上已经有了的 → 原样保留，绝不动
- *   3. PRESET_VARS 里显式写明的 → 以它为准，覆盖同名变量（这是你主动声明的）
- *
- * 默认值与代码里的兜底值保持一致，改一处请同步另一处。
+ * 这个脚本现在只在一种情况下写入：你在仓库变量 PRESET_VARS 里显式声明了 K=V。
+ * 也就是说，只有你明确要覆盖的才会写，其余一律不动。
  *
  * 输出：
  *   - $GITHUB_ENV：KEY=VALUE，供 wrangler-action 取值
@@ -21,28 +17,25 @@ import { appendFileSync } from 'node:fs';
 
 const API_BASE = (process.env.CF_API_BASE || 'https://api.cloudflare.com/client/v4').replace(/\/+$/, '');
 
-// 默认值清单：与 src/db.js 的 config() / src/storage.js 里的兜底值一致
-export const DEFAULTS = {
-  STORAGE_DRIVER: 'auto',
-  R2_BUCKET_NAME: 'filecove',
-  DOWNLOAD_MODE: 'auto',
-  IP_MAX_DOWNLOADS: '30',
-  IP_WINDOW_SECONDS: '3600',
-  BAN_MINUTES: '60',
-  MONTHLY_TRAFFIC_LIMIT: '0',
-  UPLOAD_MAX_SIZE: '107374182400',
-  MULTIPART_THRESHOLD: '104857600',
-  MULTIPART_PART_SIZE: '16777216',
-  TURNSTILE_ENABLED: '0',
-  // PUBLIC_BASE_URL / TURNSTILE_SITEKEY / S3_* 留空才有意义，不预设，
-  // 免得写出一堆空值把控制台搞乱（空值也不会覆盖已有值）
-};
+// 不再铺默认值：默认配置由 Worker 首次运行时写进 D1（src/db.js 的 SEED_DEFAULTS）。
+// 这里保留一个空对象，是为了让 planVars 的语义保持不变：只有 PRESET_VARS 才写入。
+export const DEFAULTS = {};
 
 // 允许写入的白名单（密钥类一律走 Secrets，不在这里）
 const ALLOWED = new Set([
-  ...Object.keys(DEFAULTS),
+  'STORAGE_DRIVER',
+  'R2_BUCKET_NAME',
   'PUBLIC_BASE_URL',
+  'DOWNLOAD_MODE',
+  'IP_MAX_DOWNLOADS',
+  'IP_WINDOW_SECONDS',
+  'BAN_MINUTES',
+  'MONTHLY_TRAFFIC_LIMIT',
+  'UPLOAD_MAX_SIZE',
+  'MULTIPART_THRESHOLD',
+  'MULTIPART_PART_SIZE',
   'TURNSTILE_SITEKEY',
+  'TURNSTILE_ENABLED',
   'S3_ENDPOINT',
   'S3_BUCKET',
   'S3_REGION',
@@ -123,12 +116,12 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     script,
   });
   if (!existing) {
-    // 查不到（多半是首次部署，Worker 还不存在）——按「都没有」处理，把默认值铺一遍
     existing = new Set();
-    console.log('• 读不到 Worker 上已有的变量，按首次部署处理，将补上全部默认值');
+    console.log('• 读不到 Worker 上已有的变量（通常是首次部署），按未配置处理');
   } else if (existing.size) {
     console.log(`• Worker 上已有 ${existing.size} 个文本变量，已存在的不会被改动`);
   }
+  console.log('• 默认配置由 Worker 写入数据库（设置页可改），这里不铺默认值');
 
   const plan = planVars({ presetPairs: pairs, existing });
 
