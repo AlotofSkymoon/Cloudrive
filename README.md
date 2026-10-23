@@ -1,5 +1,7 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
+> 当前版本 **v0.3.0**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
 - 存储：R2 绑定 **或** 任意 S3 兼容存储（R2 的 S3 API、Backblaze B2、MinIO、腾讯 COS、阿里云 OSS…），改几个变量就能换
