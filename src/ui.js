@@ -101,7 +101,7 @@ export function loginHtml() {
   return page('登录 · Filecove', `<div class="center"><div class="glass login">
   <div class="big"><div class="icon">FC</div><div><div style="font-size:18px;font-weight:700">Filecove</div><div class="muted">R2 / S3 网盘分享系统</div></div></div>
   <div id="hint"></div>
-  <form id="f" onsubmit="return login()">
+  <form id="f" onsubmit="login(event);return false">
     <label>管理员密码</label>
     <input type="password" id="pwd" placeholder="请输入管理密码" autocomplete="current-password">
     <button class="primary" id="btn" type="submit" style="width:100%;margin-top:14px">登 录</button>
@@ -143,7 +143,11 @@ async function probe(){
     }
   }catch(e){/* 探不到就正常显示表单，不影响登录 */}
 }
-async function login(){
+async function login(e){
+  // 关键：async 函数返回的是 Promise（真值），光靠 return login() 阻止不了表单默认提交——
+  // 浏览器会立刻发起一次原生 GET 导航，把还在飞的 /api/login 请求掐断，
+  // 表现就是「页面刷新一下又回到登录页」。这里显式 preventDefault 兜住。
+  if(e&&e.preventDefault)e.preventDefault();
   var pwd=document.getElementById('pwd').value;
   $err.innerHTML='';
   var r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:pwd})});

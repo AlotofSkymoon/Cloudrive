@@ -51,6 +51,23 @@ r = await call('/api/status');
 let st = await r.json();
 assert('状态探针显示已配置管理员密码', st.ok && st.hasAdmin === true && st.https === true, JSON.stringify(st));
 
+// 1.6 登录表单的 onsubmit 必须同步返回 false
+// （async 函数返回 Promise，是「真值」——只写 return login() 阻止不了表单默认提交，
+//   浏览器会立刻原生导航，把 /api/login 请求掐断，表现为「刷新后又回到登录页」）
+{
+  const page = await (await worker.fetch(new Request(origin + '/'), env, ctx)).text();
+  const m = /<form[^>]*onsubmit="([^"]+)"/.exec(page);
+  assert('登录页能取到表单的 onsubmit', !!m);
+  if (m) {
+    // 用真实的 handler 字符串构造一个函数，模拟浏览器对返回值的判定
+    const fn = new Function('event', 'login', m[1]);
+    const ret = fn({ preventDefault() {} }, async () => {});
+    assert('onsubmit 同步返回 false（而非 Promise）', ret === false, `实际返回: ${String(ret)}`);
+    // 双保险：login() 内部也应自己 preventDefault，避免以后改属性时又退化
+    assert('login() 内部也调用了 preventDefault', /async function login\(e\)[\s\S]{0,400}?preventDefault/.test(page));
+  }
+}
+
 // 2. 登录
 r = grab(await call('/api/login', { method: 'POST', body: JSON.stringify({ password: 'wrong' }) }));
 assert('错误密码登录失败', (await r.json()).ok === false);
