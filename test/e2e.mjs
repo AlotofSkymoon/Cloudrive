@@ -44,7 +44,7 @@ function assert(name, cond, extra = '') {
 // 1. 未登录 → 登录页
 let r = await call('/');
 let body = await r.text();
-assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('私人网盘登录密码'));
+assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('登录密码') && body.includes('login(event)'));
 
 // 1.5 状态探针：无需登录就能看出卡在哪
 r = await call('/api/status');
@@ -77,7 +77,7 @@ assert('正确密码登录成功', (await r.json()).ok === true && (jar.adm || '
 // 3. 后台
 r = await call('/');
 body = await r.text();
-assert('已登录访问 / 返回管理后台', body.includes('文件') && body.includes('Filecove 管理'));
+assert('已登录访问 / 返回管理后台', body.includes('Filecove') && body.includes('panel-files') && body.includes('上传'));
 
 // 4. 上传（R2 绑定 → worker 模式）
 r = await call('/api/upload/presign', {
