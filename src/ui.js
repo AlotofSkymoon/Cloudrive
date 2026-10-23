@@ -343,6 +343,8 @@ function page(title, body, script = '') {
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f4f2ec">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <title>${esc(title)}</title>
 <style>${CSS}</style></head>
 <body>
@@ -873,7 +875,17 @@ async function copyLink(i){
   var f=FILES[i];if(!f)return;
   var d=await api('/api/files/'+f.id+'/link');
   if(!d)return;
-  if(!d.url){toast('未配置公网域名，无法生成对象直链');return;}
+  if(!d.url){
+    // 分两种：压根没配，还是配了但存储层没读到（多半是没重新部署）
+    if(d.reason==='public_base_not_applied'){
+      toast('已填了域名但没生效，重新部署一次');
+      setTimeout(function(){document.querySelector('[data-tab=settings]').click();},600);
+    }else{
+      toast('还没配置公网域名');
+      setTimeout(function(){document.querySelector('[data-tab=settings]').click();},600);
+    }
+    return;
+  }
   copyText(d.url);
 }
 function zoom(id){
@@ -1127,7 +1139,10 @@ async function loadCfg(){
   var ton=c.turnstileEnabled;
   $('cfg').innerHTML=
    '<div class="sec-title">直链与下载</div>'+
-   field('公网域名','对象存储的公开访问域名',numInput('c-base',c.publicBaseUrl||'',''),'PUBLIC_BASE_URL')+
+   field('公网域名','对象存储的公开访问域名',
+     numInput('c-base',c.publicBaseUrl||'','')+
+     '<button class="btn sm" id="btn-check">检测</button>','PUBLIC_BASE_URL')+
+   '<div id="chk" style="padding:0 0 4px"></div>'+
    field('下载方式','',modeSel,'DOWNLOAD_MODE')+
    '<div class="sec-title">限流与防刷</div>'+
    field('单 IP 下载上限','',numInput('c-ipmax',c.ipMaxDownloads,'次 /',' style="max-width:64px"')+numInput('c-win',c.ipWindowSeconds,'秒',' style="max-width:64px"'),'IP_MAX_DOWNLOADS')+
@@ -1153,6 +1168,7 @@ async function loadCfg(){
    field('S3 Secret Key','留空则不改动','<input id="c-s3sk" type="password" placeholder="留空不改" style="max-width:220px">')+
    '<div class="sec-title">管理员</div>'+
    field('登录密码','留空表示不修改','<input id="c-pwd" type="password" placeholder="留空不改" style="max-width:220px">');
+  if($('btn-check'))$('btn-check').onclick=checkBase;
   var sw=$('c-ton');
   sw.onclick=function(){var on=sw.classList.toggle('on');$('c-ton-txt').textContent=on?'已开启':'已关闭';markDirty();};
   var ids=['c-base','c-mode','c-ipmax','c-win','c-ban','c-traffic','c-tkey','c-tsec','c-pwd',
@@ -1161,6 +1177,27 @@ async function loadCfg(){
   DIRTY=false;updateSave();
   $('s-mode').textContent='直链 '+(c.downloadMode||'auto');
   $('s-base').textContent=c.publicBaseUrl?c.publicBaseUrl.replace(/^https?:\\/\\//,''):'未配置直链';
+}
+// 检测：填了域名但直链还是生成不出来时，用它判断到底生效没有
+async function checkBase(){
+  var box=$('chk');if(!box)return;
+  box.innerHTML='<div class="muted">检测中…</div>';
+  var d=await api('/api/diag/link');
+  if(!d){box.innerHTML='';return;}
+  var txt='',cls='alert warn';
+  if(d.reason==='no_public_base'){cls='alert warn';txt='还没填公网域名。填了才有对象直链（不填也能用，下载会走预签名地址）。';}
+  else if(d.reason==='public_base_not_applied'){
+    cls='alert bad';
+    txt='<b>已填了域名，但存储层没读到。</b>配置是从数据库读的，'+
+        '最常见的原因是还没重新部署。去 Actions 再跑一次，然后回来看这里。';
+  }
+  else{
+    cls='alert';
+    txt='<b>直链已生效。</b>下载会直接跳到 <code>'+esc(d.effectiveBase||d.configuredBase||'')+'</code>。'+
+        (d.sample?'<br>示例：'+esc(d.sample):'')+
+        '<br>如果点开示例是 404，说明这个域名在存储桶上没有开公开访问，需要到桶的「公共访问」里绑定。';
+  }
+  box.innerHTML='<div class="'+cls+'" style="margin:2px 0 8px">'+txt+'</div>';
 }
 function markDirty(){DIRTY=true;updateSave();}
 function updateSave(){$('saveState').textContent=DIRTY?'有未保存的改动':'在这里改会存进数据库，优先级高于环境变量';}

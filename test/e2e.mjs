@@ -144,6 +144,47 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
   assert('没有环境变量时标记为内置默认', src2.sources.PUBLIC_BASE_URL === '内置默认', src2.sources.PUBLIC_BASE_URL);
 }
 
+// 5.9 favicon：必须是云朵图标，不带文字
+{
+  const f1 = await worker.fetch(new Request(origin + '/favicon.svg'), env, ctx);
+  assert('/favicon.svg 返回 SVG', f1.status === 200 && (f1.headers.get('content-type') || '').includes('svg'), f1.headers.get('content-type'));
+  const svg = await f1.text();
+  assert('图标是 SVG 图形', svg.startsWith('<svg') && svg.includes('circle'), svg.slice(0, 60));
+  assert('图标不含文字', !/<text\b/.test(svg), 'favicon 里不该有 text 元素');
+  const f2 = await worker.fetch(new Request(origin + '/favicon.ico'), env, ctx);
+  assert('/favicon.ico 也能取到图标', f2.status === 200);
+  const home = await (await worker.fetch(new Request(origin + '/'), env, ctx)).text();
+  assert('页面声明了 svg 图标', home.includes('rel="icon"') && home.includes('/favicon.svg'));
+}
+
+// 5.10 直链自检：区分「没配」和「配了但存储层没读到」
+{
+  const cookieStr = Object.values(jar).filter(Boolean).join('; ');
+  const diag = await (await worker.fetch(new Request(origin + '/api/diag/link', { headers: { cookie: cookieStr } }), env, ctx)).json();
+  assert('自检接口返回 ok', diag.ok === true && diag.reason === 'ok', JSON.stringify(diag));
+  assert('自检给出生效中的域名', diag.effectiveBase === 'https://cdn.example.com', JSON.stringify(diag));
+
+  // 只在数据库里配、环境变量没有时，存储层也必须读到
+  // （v0.6.1 之前 storage 是用原始 env 建的，读不到数据库的值，
+  //   于是设置页显示有、点直链却提示没配——就是这个问题）
+  await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('PUBLIC_BASE_URL', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind('https://cdn.example.com').run();
+  const envDbOnly = { ...env, PUBLIC_BASE_URL: '' };
+  const diag2 = await (await worker.fetch(new Request(origin + '/api/diag/link', { headers: { cookie: cookieStr } }), envDbOnly, ctx)).json();
+  assert('配置只在数据库里时依然生效', diag2.effectiveBase === 'https://cdn.example.com', JSON.stringify(diag2));
+}
+
+// 5.11 直链不可用时要说明原因，而不是笼统说没配
+{
+  const envNone = { ...env, PUBLIC_BASE_URL: '' };
+  // 清掉数据库里的公网域名
+  await env.DB.prepare("DELETE FROM settings WHERE k = 'PUBLIC_BASE_URL'").run();
+  const cookieStr = Object.values(jar).filter(Boolean).join('; ');
+  const diag3 = await (await worker.fetch(new Request(origin + '/api/diag/link', { headers: { cookie: cookieStr } }), envNone, ctx)).json();
+  assert('没配域名时自检给出 no_public_base', diag3.reason === 'no_public_base', JSON.stringify(diag3));
+  // 还原，别影响后面的用例
+  await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('PUBLIC_BASE_URL', ?)").bind('https://cdn.example.com').run();
+}
+
 // 6. 创建分享（密码 + 限 1 次）
 r = await call('/api/shares', {
   method: 'POST',

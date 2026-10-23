@@ -4,6 +4,7 @@ import * as auth from './auth.js';
 import * as limit from './limit.js';
 import { createStorage } from './storage.js';
 import { adminHtml, loginHtml, renderErrorPage } from './ui.js';
+import { faviconResponse } from './logo.js';
 import { sharePage, unlock, doDownload, directLink } from './share.js';
 import {
   json,
@@ -62,7 +63,8 @@ export default {
         })
       );
     }
-    if (p === '/favicon.ico') return new Response(null, { status: 204 });
+    // 站点图标：云朵 + 文件夹（不带文字）
+    if (p === '/favicon.ico' || p === '/favicon.svg' || p === '/logo.svg') return faviconResponse();
 
     // ---------- 登录 / 登出 ----------
     if (p === '/api/login' && method === 'POST') {
@@ -324,11 +326,27 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
     const row = await db.get(env, 'SELECT * FROM files WHERE id = ?', m[1]);
     if (!row) return json({ ok: false, msg: '文件不存在' }, 404);
     const pub = storage.publicUrl ? storage.publicUrl(row.key) : null;
-    if (pub) return json({ ok: true, url: pub });
+    if (pub) return json({ ok: true, url: pub, kind: 'public' });
     if (storage.presignGet) {
-      return json({ ok: true, url: await storage.presignGet(row.key, { expires: 3600, filename: row.name, download: true }), signed: true });
+      return json({
+        ok: true,
+        url: await storage.presignGet(row.key, { expires: 3600, filename: row.name, download: true }),
+        signed: true,
+        kind: 'signed',
+      });
     }
-    return json({ ok: true, url: null, msg: '未配置 PUBLIC_BASE_URL' });
+    // 说清楚是没配域名，还是配了但没生效，方便对排查
+    return json({
+      ok: true,
+      url: null,
+      kind: 'none',
+      reason: cfg.publicBaseUrl ? 'public_base_not_applied' : 'no_public_base',
+      msg: cfg.publicBaseUrl
+        ? '已配置公网域名，但存储层没读到。请重新部署一次让配置生效。'
+        : '还没配置公网域名，到设置页填一下。',
+      configuredBase: cfg.publicBaseUrl || '',
+      effectiveBase: storage.publicBase || '',
+    });
   }
 
   // 分享：创建 / 列表 / 删除 / 修改
@@ -436,6 +454,19 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
     });
   }
 
+  // 直链自检：填了域名到底生效没有，一句话说清
+  if (p === '/api/diag/link' && method === 'GET') {
+    const configured = cfg.publicBaseUrl || '';
+    const effective = storage.publicBase || '';
+    const row = await db.get(env, 'SELECT key FROM files ORDER BY uploaded_at DESC LIMIT 1');
+    let sample = '';
+    if (row && storage.publicUrl) sample = storage.publicUrl(row.key) || '';
+    let reason = 'ok';
+    if (!configured && !effective) reason = 'no_public_base';
+    else if (configured && !effective) reason = 'public_base_not_applied';
+    return json({ ok: true, reason, configuredBase: configured, effectiveBase: effective, sample, driver: storage.driver });
+  }
+
   // 配置读写
   if (p === '/api/config' && method === 'GET') {
     return json({
@@ -490,8 +521,23 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
         return json({ ok: false, msg: '切到 S3 还缺：' + missing.join(' / ') }, 400);
       }
     }
+    // 文本项照写；但空白值不覆盖已有内容——前端那些「留空不改」的
+    // 输入框（S3 密钥等）提交上来就是空串，直接写会把原值清掉
+    const BLANK_KEEP = new Set([
+      'S3_ACCESS_KEY_ID',
+      'S3_SECRET_ACCESS_KEY',
+      'TURNSTILE_SECRET',
+      'PUBLIC_BASE_URL',
+      'TURNSTILE_SITEKEY',
+      'S3_ENDPOINT',
+      'S3_BUCKET',
+      'S3_REGION',
+    ]);
     for (const [k, v] of Object.entries(map)) {
-      if (v != null) await db.setSetting(env, k, v);
+      if (v == null) continue;
+      const val = String(v);
+      if (BLANK_KEEP.has(k) && !val.trim()) continue;
+      await db.setSetting(env, k, val);
     }
     let pwdMsg = '';
     if (b.adminPassword) {
