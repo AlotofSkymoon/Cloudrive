@@ -98,6 +98,24 @@ export async function setSetting(env, k, v) {
   await run(env, 'INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', k, String(v));
 }
 
+// 每个配置项的来源，用于在后台说明「这个值现在是从哪来的」
+export async function configSources(env) {
+  const s = await allSettings(env);
+  const has = (k) => s[k] != null && s[k] !== '';
+  const envHas = (k) => env[k] != null && env[k] !== '';
+  const one = (k) => (has(k) ? '后台设置' : envHas(k) ? '环境变量' : '内置默认');
+  return {
+    PUBLIC_BASE_URL: one('PUBLIC_BASE_URL'),
+    DOWNLOAD_MODE: one('DOWNLOAD_MODE'),
+    IP_MAX_DOWNLOADS: one('IP_MAX_DOWNLOADS'),
+    BAN_MINUTES: one('BAN_MINUTES'),
+    MONTHLY_TRAFFIC_LIMIT: one('MONTHLY_TRAFFIC_LIMIT'),
+    TURNSTILE_SITEKEY: one('TURNSTILE_SITEKEY'),
+    TURNSTILE_SECRET: one('TURNSTILE_SECRET'),
+    TURNSTILE_ENABLED: one('TURNSTILE_ENABLED'),
+  };
+}
+
 // 数据库设置（UI 里改过的）优先，环境变量作为初始默认值
 export async function config(env) {
   const s = await allSettings(env);

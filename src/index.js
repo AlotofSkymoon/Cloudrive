@@ -430,7 +430,12 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
 
   // 配置读写
   if (p === '/api/config' && method === 'GET') {
-    return json({ ok: true, config: cfg, hasEnvAdmin: !!env.ADMIN_PASSWORD });
+    return json({
+      ok: true,
+      config: cfg,
+      sources: await db.configSources(env),
+      hasEnvAdmin: !!env.ADMIN_PASSWORD,
+    });
   }
   if (p === '/api/config' && method === 'POST') {
     const b = await body();

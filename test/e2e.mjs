@@ -125,6 +125,16 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
   assert('未登录访问预览被拒绝', denied.status === 401, `状态 ${denied.status}`);
 }
 
+// 5.7 配置接口要说明每个值来自哪里，方便判断「变量不见了会不会有影响」
+{
+  const cfgRes = await (await call('/api/config')).json();
+  assert('配置接口返回来源信息', !!cfgRes.sources && !!cfgRes.sources.PUBLIC_BASE_URL, JSON.stringify(cfgRes.sources));
+  assert('环境变量里的直链域名标记为环境变量', cfgRes.sources.PUBLIC_BASE_URL === '环境变量', cfgRes.sources.PUBLIC_BASE_URL);
+  const noEnv = { ...env, PUBLIC_BASE_URL: '' };
+  const src2 = await (await worker.fetch(new Request(origin + '/api/config', { headers: { cookie: Object.values(jar).filter(Boolean).join('; ') } }), noEnv, ctx)).json();
+  assert('没有环境变量时标记为内置默认', src2.sources.PUBLIC_BASE_URL === '内置默认', src2.sources.PUBLIC_BASE_URL);
+}
+
 // 6. 创建分享（密码 + 限 1 次）
 r = await call('/api/shares', {
   method: 'POST',

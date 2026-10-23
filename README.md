@@ -1,6 +1,6 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v0.5.0**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v0.5.1**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -63,7 +63,26 @@
 
 跑完在 **Run workflow 的 Summary** 里能看到用到的库名和桶名。数据库已存在就复用，重跑不会重复创建。
 
-### 5.（可选）让 Actions 代管部分变量
+### 5. 变量：默认自动补，已改的绝不覆盖
+
+Actions 会自动把一套默认变量写进 Worker，所以部署完你在控制台能看到一整排（`DOWNLOAD_MODE`、`IP_MAX_DOWNLOADS`、`UPLOAD_MAX_SIZE` 等）。规则是：
+
+1. Worker 上**没有**的变量 → 用默认值补上（首次部署会看到一整排）
+2. Worker 上**已有**的 → 原样保留，绝不动
+3. 仓库变量 `PRESET_VARS` 里**显式写明**的 → 以它为准，覆盖同名变量
+
+想让 Actions 代管某个变量时，到 **Settings → Secrets and variables → Actions → Variables** 添加 `PRESET_VARS`，每行一个 `K=V`：
+
+```
+PUBLIC_BASE_URL=https://cdn.example.com
+DOWNLOAD_MODE=auto
+```
+
+留空也没问题，只是不额外覆盖而已。密钥（如 `ADMIN_PASSWORD`）不在这个名单里，请继续用 Secrets。
+
+> 后台「设置」页里改的配置会存进数据库，**优先级高于环境变量**，也不会被部署冲掉。每个配置项右边的小标签会告诉你这个值现在来自「后台设置 / 环境变量 / 内置默认」。
+
+### 6.（可选）手动微调单个变量
 默认**不需要做这一步**。仓库变量 `PRESET_VARS` 留空时，Actions 一个变量都不写，你在控制台改的值（比如 `PUBLIC_BASE_URL`）每次部署都会完整保留。
 
 想让 Actions 代管时，到 **Settings → Secrets and variables → Actions → Variables** 添加 `PRESET_VARS`，每行一个 `K=V`：
@@ -230,6 +249,11 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 4. **浏览器缓存了登录页** —— 登录成功已改为 `location.replace('/?_=时间戳')` 强制绕开缓存；还不行就硬刷新（Ctrl/Cmd + Shift + R）或清一下该站点的 Cookie。
 
 打开 `/api/status` 可以直接看到 `hasAdmin`（是否已配置密码）、`hasEnvAdmin`、`hasDbAdmin`、`https`，不需要登录。
+
+**控制台里只剩一个 ADMIN_PASSWORD，其他变量去哪了？**
+v0.4.0 之前，那些变量是由 `wrangler.toml` 的 `[vars]` 同步上去的；为了让「控制台改的值不被冲掉」，那段声明被移除了，于是它们不再被同步——所以你看到只剩自己加的密钥。
+
+从 v0.5.1 起，Actions 会**自动把缺失的默认变量补回去**（已存在的保持不动），部署完控制台又能看到一整排。功能上从来没受影响：代码里每一项都有同样的默认值，而且后台「设置」页改的值存在数据库里，优先级更高。
 
 **重新部署会不会把我改的配置冲掉？**
 不会，这是 v0.4.0 的改动重点。`wrangler.toml` 里**刻意不声明 `[vars]`**——因为 wrangler deploy 会把配置文件里的 vars 同步到 Worker，一旦声明，你在控制台改的值每次部署都会被冲回默认值。现在：

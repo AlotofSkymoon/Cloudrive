@@ -286,7 +286,7 @@ async function copyDirect(){
 
 export function adminHtml(o) {
   const script = `
-var FILES=[],SHARES=[],CFG={},SEL={};
+var FILES=[],SHARES=[],CFG={},CFG_SRC={},SEL={};
 function $(id){return document.getElementById(id);}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},2200);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -541,21 +541,27 @@ async function loadBans(){
 async function unban(ip){var d=await api('/api/bans/unban',{method:'POST',body:{ip:ip}});if(d){toast('已解封');loadBans();}}
 
 /* ---------- 设置 ---------- */
+// 显示这个值现在是从哪来的：后台设置 > 环境变量 > 内置默认
+function srcTag(k){
+  var m=(CFG_SRC||{})[k];if(!m)return '';
+  return '<span class="tag" style="margin-left:6px">'+esc(m)+'</span>';
+}
 async function loadCfg(){
-  var d=await api('/api/config');if(!d)return;CFG=d.config||{};
+  var d=await api('/api/config');if(!d)return;CFG=d.config||{};CFG_SRC=d.sources||{};
   var c=CFG;
   $('cfg').innerHTML=
-   '<div><label>下载直链域名</label><input id="c-base" value="'+esc(c.publicBaseUrl||'')+'" placeholder="cdn.example.com">'+
+   '<div><label>下载直链域名'+srcTag('PUBLIC_BASE_URL')+'</label><input id="c-base" value="'+esc(c.publicBaseUrl||'')+'" placeholder="cdn.example.com">'+
    '<div class="muted" style="margin-top:6px">填桶的公网访问域名，下载会直接跳过去，不走 Worker。<br>写 <code>cdn.example.com</code> 就行，前面有没有 https:// 都可以。</div></div>'+
-   '<div style="margin-top:10px"><label>下载方式</label><select id="c-mode">'+
+   '<div style="margin-top:10px"><label>下载方式'+srcTag('DOWNLOAD_MODE')+'</label><select id="c-mode">'+
    ['auto','public','signed','proxy'].map(function(m){return '<option value="'+m+'"'+(c.downloadMode===m?' selected':'')+'>'+m+'</option>';}).join('')+'</select></div>'+
    '<div class="row" style="margin-top:10px"><div><label>单 IP 下载上限（次/小时）</label><input id="c-ipmax" type="number" value="'+esc(c.ipMaxDownloads)+'"></div>'+
-   '<div><label>超限封禁（分钟）</label><input id="c-ban" type="number" value="'+esc(c.banMinutes)+'"></div></div>'+
-   '<div style="margin-top:10px"><label>月度流量上限（GB，0=不限）</label><input id="c-traffic" type="number" value="'+esc((c.monthlyTrafficLimit/1073741824).toFixed(2))+'"></div>'+
+   '<div><label>超限封禁（分钟）'+srcTag('BAN_MINUTES')+'</label><input id="c-ban" type="number" value="'+esc(c.banMinutes)+'"></div></div>'+
+   '<div style="margin-top:10px"><label>月度流量上限（GB，0=不限）'+srcTag('MONTHLY_TRAFFIC_LIMIT')+'</label><input id="c-traffic" type="number" value="'+esc((c.monthlyTrafficLimit/1073741824).toFixed(2))+'"></div>'+
    '<div class="row" style="margin-top:10px"><div><label>Turnstile Sitekey</label><input id="c-tkey" value="'+esc(c.turnstileSitekey||'')+'"></div>'+
    '<div><label>Turnstile Secret</label><input id="c-tsec" value="'+esc(c.turnstileSecret||'')+'"></div></div>'+
    '<div style="margin-top:10px"><label>开启人机验证</label><select id="c-ton"><option value="1"'+(c.turnstileEnabled?' selected':'')+'>开启</option><option value="0"'+(!c.turnstileEnabled?' selected':'')+'>关闭</option></select></div>'+
    '<div style="margin-top:10px"><label>改登录密码（留空不改）</label><input id="c-pwd" type="password" placeholder="留空表示不修改"></div>'+
+   '<div class="muted" style="margin-top:12px">在这里改会存进数据库，优先级高于环境变量，且不会被部署冲掉。标签后面的小字标着这个值现在来自哪里。</div>'+
    '<button class="primary" style="margin-top:16px;width:100%" onclick="saveCfg()">保存设置</button>';
 }
 async function saveCfg(){
