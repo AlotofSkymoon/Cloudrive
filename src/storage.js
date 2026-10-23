@@ -1,5 +1,6 @@
 // 存储抽象层：R2 绑定 / 任意 S3 兼容存储（R2 的 S3 API、Backblaze B2、MinIO、腾讯云 COS、阿里云 OSS ...）
 import { presign, signedFetch, uriEncode } from './sigv4.js';
+import { normalizeOrigin } from './util.js';
 
 function encodeKeyPath(key) {
   return key.split('/').map((s) => uriEncode(s)).join('/');
@@ -10,7 +11,7 @@ class R2Storage {
     this.driver = 'r2';
     this.bucket = env.BUCKET;
     this.label = env.R2_BUCKET_NAME || 'R2 绑定存储桶';
-    this.publicBase = (env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    this.publicBase = normalizeOrigin(env.PUBLIC_BASE_URL);
   }
   get canPresign() {
     return false;
@@ -79,7 +80,7 @@ class S3Storage {
     this.bucket = env.S3_BUCKET;
     this.label = env.S3_BUCKET + ' @ ' + new URL(this.endpoint).host;
     this.pathStyle = String(env.S3_FORCE_PATH_STYLE ?? 'true') !== 'false';
-    this.publicBase = (env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+    this.publicBase = normalizeOrigin(env.PUBLIC_BASE_URL);
   }
   get canPresign() {
     return true;

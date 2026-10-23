@@ -57,6 +57,14 @@ td.name{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);padding:11px 18px;border-radius:99px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
 .toast.on{opacity:1}
 .empty{text-align:center;padding:26px;color:var(--sub);font-size:13px}
+.thumb{width:40px;height:40px;border-radius:10px;object-fit:cover;display:block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
+.thumb-ph{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+.prev{margin-bottom:12px;border-radius:16px;overflow:hidden;background:rgba(0,0,0,.22);border:1px solid var(--stroke)}
+.prev img{display:block;width:100%;max-height:320px;object-fit:contain;cursor:zoom-in}
+.prev-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;font-size:12.5px;color:var(--sub)}
+.lightbox{position:fixed;inset:0;background:rgba(4,7,14,.92);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:120;padding:16px;cursor:zoom-out}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:12px}
 .alert{margin-top:12px;padding:11px 13px;border-radius:14px;font-size:12.5px;line-height:1.6}
 .alert.bad{background:rgba(255,86,86,.18);border:1px solid rgba(255,120,120,.38);color:#ffd7d7}
 .alert.warn{background:rgba(255,193,7,.16);border:1px solid rgba(255,213,79,.36);color:#ffe8a8}
@@ -86,6 +94,7 @@ function page(title, body, script = '') {
 <div class="blob b3" style="width:460px;height:460px;left:30%;bottom:-180px;background:#22d3ee"></div>
 <div class="wrap">${body}</div>
 <div class="mask" id="mask"><div class="glass modal" id="modal"></div></div>
+<div class="lightbox" id="lightbox"></div>
 <div class="toast glass" id="toast"></div>
 <script>${script}</script></body></html>`;
 }
@@ -99,12 +108,12 @@ export function renderErrorPage(title, msg) {
 
 export function loginHtml() {
   return page('登录 · Filecove', `<div class="center"><div class="glass login">
-  <div class="big"><div class="icon">FC</div><div><div style="font-size:18px;font-weight:700">Filecove</div><div class="muted">R2 / S3 网盘分享系统</div></div></div>
+  <div class="big"><div class="icon">FC</div><div><div style="font-size:18px;font-weight:700">Filecove</div><div class="muted">私人网盘</div></div></div>
   <div id="hint"></div>
   <form id="f" onsubmit="login(event);return false">
-    <label>管理员密码</label>
-    <input type="password" id="pwd" placeholder="请输入管理密码" autocomplete="current-password">
-    <button class="primary" id="btn" type="submit" style="width:100%;margin-top:14px">登 录</button>
+    <label>私人网盘登录密码</label>
+    <input type="password" id="pwd" placeholder="输入登录密码" autocomplete="current-password">
+    <button class="primary" id="btn" type="submit" style="width:100%;margin-top:14px">进 入</button>
   </form>
   <div id="err"></div></div></div>`,
     `
@@ -115,7 +124,7 @@ async function probe(){
     var r=await fetch('/api/status',{cache:'no-store'});
     var d=await r.json();
     if(!d.hasAdmin){
-      show($hint,'bad','<b>Worker 侧还没设置管理员密码</b><br>到 Cloudflare → Workers → <code>filecove</code> → 设置 → 变量和机密，添加 <code>ADMIN_PASSWORD</code>（类型选「机密」）后重新部署；改用 GitHub Actions 部署则会自动注入。');
+      show($hint,'bad','<b>还没设置登录密码</b><br>到 Workers → <code>filecove</code> → 设置 → 变量和机密，添加 <code>ADMIN_PASSWORD</code>（选「机密」类型）后重新部署。用 GitHub Actions 部署的话会自动填好。');
       document.getElementById('pwd').disabled=true;
       document.getElementById('btn').disabled=true;
       return;
@@ -158,7 +167,7 @@ async function login(e){
     location.replace('/?_='+Date.now());
     return false;
   }
-  var html=d.reason==='no_password'?('<b>'+(d.msg||'未设置管理员密码')+'</b>'):(d.msg||('登录失败（HTTP '+r.status+'）'));
+  var html=d.reason==='no_password'?('<b>'+(d.msg||'还没设置登录密码')+'</b>'):(d.msg||('进不去（HTTP '+r.status+'）'));
   if(d.hint&&(d.hint.hasLeadingTrailingSpace||d.hint.hasLineBreak)){
     html+='<br><b>提示：</b>Worker 里存的密码首尾带有空格或换行（长度 '+d.hint.length+'，去空白后 '+d.hint.trimmedLength+'）。从控制台复制 Secret 时很容易混进去，请删掉重新粘贴并重新部署。';
   }else if(d.hint){
@@ -225,6 +234,13 @@ async function start(){
   }
   location.href='/d/'+CODE;
 }
+function zoomPrev(){
+  var lb=document.getElementById('lightbox');if(!lb)return;
+  var src='/raw/'+CODE;
+  lb.innerHTML='<img src="'+src+'" alt="">';
+  lb.classList.add('on');
+  lb.onclick=function(){lb.classList.remove('on');lb.innerHTML='';};
+}
 async function copyDirect(){
   var r=await fetch('/direct/'+CODE,{headers:{'accept':'application/json'}});
   var d=await r.json();
@@ -236,9 +252,21 @@ async function copyDirect(){
     ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTsLoad&render=explicit" async defer></script>'
     : '';
 
+  const isImage = /^image\//i.test(o.share.file_mime || '') || /\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif)$/i.test(name);
+  const showPreview = isImage && !o.error && !o.banned && !(o.needPassword || o.needTurnstile);
+  // 图片直接把预览铺出来，不用点下载才知道里面是什么
+  const preview = showPreview
+    ? `<div class="prev" id="prevBox">
+    <img src="/raw/${o.code}" alt="${esc(name)}" loading="lazy" onclick="zoomPrev()"
+         onerror="var p=document.getElementById('prevBox');if(p)p.style.display='none';">
+    <div class="prev-meta"><span>预览图</span><span>点图片看大图</span></div>
+  </div>`
+    : '';
+
   const body = `<div class="glass" style="padding:22px">
   <div class="big"><div class="icon">${icon}</div><div><div style="font-size:17px;font-weight:700;word-break:break-all">${esc(name)}</div>
   <div class="muted">${sizeText} · ${esc(o.share.file_mime || '文件')}</div></div></div>
+  ${preview}
   <div class="card">
     <div class="kv"><span>分享时间</span><b>${new Date(s.created_at * 1000).toLocaleString('zh-CN')}</b></div>
     <div class="kv"><span>有效期</span><b>${esc(expireText)}</b></div>
@@ -250,7 +278,7 @@ async function copyDirect(){
     <button onclick="copyDirect()">复制直链</button>
     <button onclick="location.href='/raw/${o.code}'">在线预览</button>
   </div>
-  <div class="muted" style="margin-top:14px;text-align:center">由 Filecove 提供 · 文件存储在对象存储，下载走直链</div>
+  <div class="muted" style="margin-top:14px;text-align:center">Filecove · 下载走直链</div>
 </div>${tsScript}`;
 
   return page('分享 · ' + name, body, script);
@@ -313,13 +341,35 @@ async function syncBucket(){
   toast('扫描 '+d.scanned+' 个对象，新增 '+d.added+' 条');
   OFFSET=0;loadFiles(true);loadStats();
 }
+// 只有图片才值得出缩略图，其余按后缀给个图标，省得发一堆无效请求
+var IMG_EXT=/\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif)$/i;
+function isImg(f){
+  return /^image\//i.test(f.mime||'') || IMG_EXT.test(f.name||'');
+}
+function kindIcon(f){
+  var n=(f.name||'').toLowerCase();
+  if(/\.(mp4|mov|webm|mkv|avi)$/.test(n))return '\uD83C\uDF9E';
+  if(/\.(mp3|wav|flac|m4a|ogg)$/.test(n))return '\uD83C\uDFB5';
+  if(/\.(zip|rar|7z|tar|gz)$/.test(n))return '\uD83D\uDCE6';
+  if(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/.test(n))return '\uD83D\uDCC4';
+  return '\uD83D\uDCCE';
+}
+function thumbCell(f,i){
+  if(isImg(f)){
+    return '<img class="thumb" loading="lazy" src="/preview/'+esc(f.id)+'" alt="" '+
+           'onclick="zoom(\''+esc(f.id)+'\')" '+
+           'onerror="this.outerHTML=\'<div class=&quot;thumb-ph&quot;>'+kindIcon(f)+'</div>\'">';
+  }
+  return '<div class="thumb-ph">'+kindIcon(f)+'</div>';
+}
 function renderFiles(){
   var h='';
   if(!FILES.length){h='<div class="empty">还没有文件，点上面上传吧</div>';}
   else{
-    h='<table><tr><th style="width:34px"></th><th>文件名</th><th style="width:82px">大小</th><th style="width:120px">上传时间</th><th style="width:150px">操作</th></tr>';
+    h='<table><tr><th style="width:34px"></th><th style="width:46px"></th><th>文件名</th><th style="width:82px">大小</th><th style="width:120px">上传时间</th><th style="width:150px">操作</th></tr>';
     for(var i=0;i<FILES.length;i++){var f=FILES[i];
       h+='<tr><td><input type="checkbox" class="chk" data-i="'+i+'"></td>'+
+      '<td>'+thumbCell(f,i)+'</td>'+
       '<td class="name" title="'+esc(f.name)+'">'+esc(f.name)+'</td>'+
       '<td>'+fmt(f.size)+'</td><td class="muted">'+t2s(f.uploaded_at)+'</td>'+
       '<td><button onclick="openShare('+i+')" style="padding:6px 10px">分享</button> '+
@@ -333,6 +383,12 @@ function renderFiles(){
   var ck=document.querySelectorAll('.chk');
   for(var j=0;j<ck.length;j++){ck[j].onchange=function(){SEL[this.dataset.i]=this.checked;updateSelBar();};}
   updateSelBar();
+}
+function zoom(id){
+  var lb=$('lightbox');if(!lb)return;
+  lb.innerHTML='<img src="/preview/'+id+'" alt="">';
+  lb.classList.add('on');
+  lb.onclick=function(){lb.classList.remove('on');lb.innerHTML='';};
 }
 function updateSelBar(){
   var ids=[];for(var k in SEL){if(SEL[k])ids.push(FILES[k].id);}
@@ -489,7 +545,8 @@ async function loadCfg(){
   var d=await api('/api/config');if(!d)return;CFG=d.config||{};
   var c=CFG;
   $('cfg').innerHTML=
-   '<div><label>对象公网域名 PUBLIC_BASE_URL（下载直链用，如 https://cdn.example.com）</label><input id="c-base" value="'+esc(c.publicBaseUrl||'')+'"></div>'+
+   '<div><label>下载直链域名</label><input id="c-base" value="'+esc(c.publicBaseUrl||'')+'" placeholder="cdn.example.com">'+
+   '<div class="muted" style="margin-top:6px">填桶的公网访问域名，下载会直接跳过去，不走 Worker。<br>写 <code>cdn.example.com</code> 就行，前面有没有 https:// 都可以。</div></div>'+
    '<div style="margin-top:10px"><label>下载方式</label><select id="c-mode">'+
    ['auto','public','signed','proxy'].map(function(m){return '<option value="'+m+'"'+(c.downloadMode===m?' selected':'')+'>'+m+'</option>';}).join('')+'</select></div>'+
    '<div class="row" style="margin-top:10px"><div><label>单 IP 下载上限（次/小时）</label><input id="c-ipmax" type="number" value="'+esc(c.ipMaxDownloads)+'"></div>'+
@@ -498,7 +555,7 @@ async function loadCfg(){
    '<div class="row" style="margin-top:10px"><div><label>Turnstile Sitekey</label><input id="c-tkey" value="'+esc(c.turnstileSitekey||'')+'"></div>'+
    '<div><label>Turnstile Secret</label><input id="c-tsec" value="'+esc(c.turnstileSecret||'')+'"></div></div>'+
    '<div style="margin-top:10px"><label>开启人机验证</label><select id="c-ton"><option value="1"'+(c.turnstileEnabled?' selected':'')+'>开启</option><option value="0"'+(!c.turnstileEnabled?' selected':'')+'>关闭</option></select></div>'+
-   '<div style="margin-top:10px"><label>修改管理员密码（留空不改）</label><input id="c-pwd" type="password" placeholder="留空表示不修改"></div>'+
+   '<div style="margin-top:10px"><label>改登录密码（留空不改）</label><input id="c-pwd" type="password" placeholder="留空表示不修改"></div>'+
    '<button class="primary" style="margin-top:16px;width:100%" onclick="saveCfg()">保存设置</button>';
 }
 async function saveCfg(){
@@ -520,7 +577,7 @@ initDrop();loadStats();tab('files');
 
   const body = `<div class="glass top">
   <div class="logo">S3</div>
-  <div><div class="brand">Filecove</div><div class="muted">R2 / S3 网盘 · ${esc(o.driver)} · ${esc(o.bucket)}</div></div>
+  <div><div class="brand">Filecove</div><div class="muted">私人网盘 · ${esc(o.driver)} · ${esc(o.bucket)}</div></div>
   <div class="spacer"></div>
   <div class="muted" id="stats"></div>
   <button onclick="logout()">退出</button>

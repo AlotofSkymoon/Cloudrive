@@ -1,3 +1,5 @@
+import { normalizeOrigin } from './util.js';
+
 // D1 数据层：建表、查询、配置读写
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS files (
@@ -101,7 +103,7 @@ export async function config(env) {
   const s = await allSettings(env);
   const pick = (key, def = '') => (s[key] != null && s[key] !== '' ? String(s[key]) : env[key] != null && env[key] !== '' ? String(env[key]) : String(def));
   return {
-    publicBaseUrl: pick('PUBLIC_BASE_URL', '').replace(/\/+$/, ''),
+    publicBaseUrl: normalizeOrigin(pick('PUBLIC_BASE_URL', '')),
     downloadMode: pick('DOWNLOAD_MODE', 'auto'), // auto | public | signed | proxy
     monthlyTrafficLimit: Number(pick('MONTHLY_TRAFFIC_LIMIT', '0')) || 0,
     ipMaxDownloads: Number(pick('IP_MAX_DOWNLOADS', '30')) || 30,

@@ -109,6 +109,23 @@ export function isHttps(request) {
   }
 }
 
+// 规范化「桶的公网域名」。
+// 只填 v6.cc.cd 这种裸域名很常见，但拼出来的 URL 没有 scheme，
+// 浏览器会当成相对路径解析到当前站点下 —— 结果就是 404（页面不存在：/d/v6.cc.cd/...）。
+export function normalizeOrigin(raw) {
+  let s = String(raw ?? '').trim();
+  if (!s) return '';
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) s = 'https://' + s;
+  s = s.replace(/\/+$/, '');
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return u.origin;
+  } catch {
+    return '';
+  }
+}
+
 export function safeName(name) {
   return (name || 'file')
     .replace(/[\\/:*?"<>|\r\n\t\x00]/g, '_')

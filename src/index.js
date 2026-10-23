@@ -15,6 +15,7 @@ import {
   clientIp,
   clientCountry,
   isHttps,
+  normalizeOrigin,
   safeName,
   buildKey,
   fmtBytes,
@@ -72,7 +73,7 @@ export default {
           {
             ok: false,
             reason: 'no_password',
-            msg: 'Worker 侧还没设置管理员密码。请在 Workers → 设置 → 变量和机密 添加 ADMIN_PASSWORD（类型选「机密」），或由 GitHub Actions 自动注入。',
+            msg: '还没设置登录密码。到 Workers → 设置 → 变量和机密 添加 ADMIN_PASSWORD（选「机密」），或用 GitHub Actions 部署，它会自动填好。',
           },
           401
         );
@@ -132,6 +133,29 @@ export default {
     }
     if ((m = /^\/direct\/([\w-]{4,32})$/.exec(p))) {
       return directLink(request, env, ctx, storage, cfg, m[1]);
+    }
+
+    // ---------- 图片预览（后台列表缩略图用，需登录）----------
+    if ((m = /^\/preview\/([\w-]{8,32})$/.exec(p)) && method === 'GET') {
+      if (!(await auth.isAdmin(request, env))) return new Response('未登录', { status: 401 });
+      const row = await db.get(env, 'SELECT * FROM files WHERE id = ?', m[1]);
+      if (!row) return new Response('文件不存在', { status: 404 });
+      // 有公网直链就直接 302，图片不占 Worker 流量
+      const pub = storage.publicUrl ? storage.publicUrl(row.key) : null;
+      if (pub) return redirect(pub);
+      if (storage.presignGet) {
+        const signed = await storage.presignGet(row.key, { expires: 3600 });
+        if (signed) return redirect(signed);
+      }
+      // 兜底：Worker 代理
+      const obj = await storage.get(row.key);
+      if (!obj) return new Response('对象不存在', { status: 404 });
+      return new Response(obj.body, {
+        headers: {
+          'content-type': row.mime || obj.contentType || 'application/octet-stream',
+          'cache-control': 'private, max-age=300',
+        },
+      });
     }
 
     // ---------- 管理 API ----------
@@ -410,6 +434,15 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
   }
   if (p === '/api/config' && method === 'POST') {
     const b = await body();
+    // 直链域名先规范化：只填 cdn.example.com 也能用，不再拼出相对路径导致 404
+    const base = String(b.publicBaseUrl ?? '').trim();
+    if (base) {
+      const norm = normalizeOrigin(base);
+      if (!norm) {
+        return json({ ok: false, msg: '直链域名看着不对，填域名就行，例如 cdn.example.com' }, 400);
+      }
+      b.publicBaseUrl = norm;
+    }
     const map = {
       PUBLIC_BASE_URL: b.publicBaseUrl,
       DOWNLOAD_MODE: b.downloadMode,

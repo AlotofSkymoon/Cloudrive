@@ -44,7 +44,7 @@ function assert(name, cond, extra = '') {
 // 1. 未登录 → 登录页
 let r = await call('/');
 let body = await r.text();
-assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('管理员密码'));
+assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('私人网盘登录密码'));
 
 // 1.5 状态探针：无需登录就能看出卡在哪
 r = await call('/api/status');
@@ -103,6 +103,27 @@ const fileId = files[0].id;
 r = await call(`/api/files/${fileId}/link`);
 const link = await r.json();
 assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.example.com/u/'), JSON.stringify(link));
+
+// 5.5 直链域名只填裸域名时也要拼成绝对地址
+// （否则浏览器按当前路径解析成 /d/v6.cc.cd/... 这类不存在的路径，直接 404）
+{
+  // DB 复用同一个实例，这样能查到刚上传的文件
+  const envBare = { ...env, PUBLIC_BASE_URL: 'v6.cc.cd' };
+  const cookieStr = Object.values(jar).filter(Boolean).join('; ');
+  const callBare = (path, opts = {}) =>
+    worker.fetch(new Request(origin + path, { ...opts, headers: { ...(opts.headers || {}), cookie: cookieStr } }), envBare, ctx);
+  const bareLink = await (await callBare(`/api/files/${fileId}/link`)).json();
+  assert('裸域名直链自动补 https', /^https:\/\/v6\.cc\.cd\//.test(bareLink.url), JSON.stringify(bareLink));
+}
+
+// 5.6 图片预览接口：已登录可访问，未登录 401
+{
+  const cookieStr2 = Object.values(jar).filter(Boolean).join('; ');
+  const prev = await worker.fetch(new Request(origin + `/preview/${fileId}`, { headers: { cookie: cookieStr2 } }), env, ctx);
+  assert('已登录可访问预览接口', prev.status === 302 || prev.status === 200, `状态 ${prev.status}`);
+  const denied = await worker.fetch(new Request(origin + `/preview/${fileId}`), env, ctx);
+  assert('未登录访问预览被拒绝', denied.status === 401, `状态 ${denied.status}`);
+}
 
 // 6. 创建分享（密码 + 限 1 次）
 r = await call('/api/shares', {
