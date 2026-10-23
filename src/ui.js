@@ -126,6 +126,21 @@ async function probe(){
     if(d.hasEnvAdmin&&d.hasDbAdmin){
       show($err,'warn','Worker 变量 <code>ADMIN_PASSWORD</code> 已设置，它的优先级高于后台「设置」里改过的密码，请用环境变量那个密码登录。');
     }
+    // 已有有效会话却停在登录页 —— 直接进后台，省得再输一次密码
+    if(d.admin){
+      location.replace('/?_='+Date.now());
+      return;
+    }
+    // 浏览器带了 Cookie 但 Worker 判定无效：说明不是密码问题，是会话没保住
+    if(d.cookieState==='invalid'){
+      show($hint,'bad','<b>登录状态未生效</b><br>浏览器发来了 Cookie，但 Worker 判定它无效——通常是密码改过导致旧会话失效，或同域存在多个部署互踢。请清空本站 Cookie 后重新登录。');
+    }
+    // 登录明明成功过，回来却完全没有 Cookie —— 浏览器没把它存下来
+    var tried=false;try{tried=sessionStorage.getItem('fc_tried')==='1';}catch(e){}
+    if(tried&&d.cookieState==='none'){
+      show($hint,'bad','<b>浏览器没有保存登录状态</b><br>登录已成功，但 Cookie 没能写入。请检查：浏览器是否屏蔽了本站 Cookie / 处于无痕模式；是否装了隐私类扩展；或站点被 HTTP 与 HTTPS 混用。');
+      try{sessionStorage.removeItem('fc_tried');}catch(e){}
+    }
   }catch(e){/* 探不到就正常显示表单，不影响登录 */}
 }
 async function login(){
@@ -134,6 +149,7 @@ async function login(){
   var r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:pwd})});
   var d=await r.json().catch(function(){return {}});
   if(d.ok){
+    try{sessionStorage.setItem('fc_tried','1');}catch(e){}
     // replace + 时间戳：避免命中缓存的登录页，出现「登录成功却回到登录页」
     location.replace('/?_='+Date.now());
     return false;

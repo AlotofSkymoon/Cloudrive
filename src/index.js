@@ -97,11 +97,18 @@ export default {
 
     // 无需登录的状态探针：帮登录页判断「卡在哪一步」
     if (p === '/api/status' && method === 'GET') {
+      const token = auth.readCookie(request, 'adm');
+      const data = await auth.verifyToken(env, token);
+      const admin = !!(data && data.role === 'admin');
       return json({
         ok: true,
         hasAdmin: !!(env.ADMIN_PASSWORD || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))),
         hasEnvAdmin: !!env.ADMIN_PASSWORD,
         hasDbAdmin: !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")),
+        // 登录态相关：能区分「密码不对」和「Cookie 没被接受」
+        admin,
+        hasCookie: !!token,
+        cookieState: !token ? 'none' : admin ? 'valid' : 'invalid',
         https: isHttps(request),
         driver: storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容',
         bucket: storage.label || '-',

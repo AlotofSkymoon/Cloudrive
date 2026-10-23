@@ -1,6 +1,6 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v0.3.2**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v0.3.3**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -175,6 +175,23 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 分享记录里存的是对象 key，换桶后 key 还在就能用；换域名后链接的域名部分会跟着新域名走（链接是访问时按当前域名拼的）。
 
 **输入密码后一直回到登录页，进不去后台？**
+
+先打开 `/api/status`，看这几个字段就能定位：
+
+| 字段 | 含义 | 说明 |
+| --- | --- | --- |
+| `hasAdmin` | 是否已配置管理员密码 | `false` 说明 Worker 侧没有 `ADMIN_PASSWORD` |
+| `admin` | 当前 Cookie 是否被接受 | `true` 说明其实已登录 |
+| `cookieState` | `none` / `valid` / `invalid` | 见下表 |
+
+`cookieState` 三种情况分别代表：
+
+- **`none`**：浏览器压根没发 Cookie。要么还没登录，要么**浏览器没把 Cookie 存下来**（无痕模式、隐私扩展、HTTP/HTTPS 混用）。登录页检测到「刚登录成功过却没有 Cookie」会直接提示这一点。
+- **`valid`**：会话正常。若仍停在登录页，是浏览器缓存了页面，硬刷新（Ctrl/Cmd + Shift + R）即可；现在登录成功后也会自动带到后台。
+- **`invalid`**：Cookie 发了但 Worker 判定无效，通常是**密码改过导致旧会话失效**，或同域有多个部署互踢。清空本站 Cookie 重新登录。
+
+如果 `hasAdmin` 为 `true` 但你输入密码后提示「密码错误」，那就是**密码值本身对不上**——注意 GitHub Secret 与 Cloudflare 控制台变量是两份独立的值，后部署的会覆盖前者。改完**必须重新部署**才生效。
+
 按这个顺序排查，登录页本身也会把检测结果显示出来（打开页面时会先探测一次）：
 
 1. **Worker 侧根本没设 `ADMIN_PASSWORD`** —— 最常见。登录页会红字提示「Worker 侧还没设置管理员密码」并禁用输入框。去 Workers → `filecove` → 设置 → 变量和机密，添加 `ADMIN_PASSWORD`（类型选「机密」），保存后**重新部署**才生效（改变量不会自动注入已运行的 Worker）。用 GitHub Actions 部署的话它会自动注入。

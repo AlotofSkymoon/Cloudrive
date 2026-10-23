@@ -161,6 +161,16 @@ r = await call('/api/files');
 assert('删除文件后列表为空', (await r.json()).files.length === 0);
 assert('存储对象一并删除', env.BUCKET.store.size === 0, String(env.BUCKET.store.size));
 
+// 15.5 状态探针能区分「未登录 / 会话有效 / 会话无效」
+r = await call('/api/status');
+st = await r.json();
+assert('带有效会话时探针显示 admin=true', st.admin === true && st.hasCookie === true && st.cookieState === 'valid', JSON.stringify(st));
+// 直接发裸请求：上面的 call() 会自动带上 jar 里的有效 cookie
+st = await (await worker.fetch(new Request(origin + '/api/status', { headers: { cookie: 'adm=not.a.valid.token' } }), env, ctx)).json();
+assert('带无效 Cookie 时探针显示 invalid', st.admin === false && st.hasCookie === true && st.cookieState === 'invalid', JSON.stringify(st));
+st = await (await worker.fetch(new Request(origin + '/api/status'), env, ctx)).json();
+assert('不带 Cookie 时探针显示 none', st.admin === false && st.hasCookie === false && st.cookieState === 'none', JSON.stringify(st));
+
 // 16. 未配置管理员密码时，登录应明确提示（不是笼统的「密码错误」）
 const env2 = { ...env, ADMIN_PASSWORD: '', DB: new FakeD1() };
 env2.DB = new FakeD1();
