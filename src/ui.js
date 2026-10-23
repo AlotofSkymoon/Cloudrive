@@ -2,7 +2,7 @@
 // 视觉：纸质米白 + 墨黑 + 衬线标题 + 等宽数字，细线分隔
 import { html } from './util.js';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.1.0-beta';
 
 const CSS = `
 :root{
