@@ -26,12 +26,12 @@ export async function verifyToken(env, token) {
   }
 }
 
-export function cookieHeader(name, value, maxAge = 60 * 60 * 12) {
-  return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+export function cookieHeader(name, value, { maxAge = 60 * 60 * 12, secure = true } = {}) {
+  return `${name}=${value}; Path=/; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-export function clearCookie(name) {
-  return `${name}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+export function clearCookie(name, { secure = true } = {}) {
+  return `${name}=; Path=/; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax; Max-Age=0`;
 }
 
 export function readCookie(request, name) {

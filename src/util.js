@@ -97,6 +97,18 @@ export function clientCountry(request) {
   return request.headers.get('cf-ipcountry') || '';
 }
 
+// 当前请求是否走 HTTPS。Cookie 的 Secure 属性只能用于 HTTPS，
+// 一旦在 HTTP 环境下带上它，浏览器会直接丢弃 Cookie —— 表现为「登录成功又跳回登录页」。
+export function isHttps(request) {
+  const proto = (request.headers.get('x-forwarded-proto') || '').split(',')[0].trim().toLowerCase();
+  if (proto) return proto === 'https';
+  try {
+    return new URL(request.url).protocol === 'https:';
+  } catch {
+    return true;
+  }
+}
+
 export function safeName(name) {
   return (name || 'file')
     .replace(/[\\/:*?"<>|\r\n\t\x00]/g, '_')

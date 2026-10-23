@@ -14,6 +14,7 @@ import {
   nowSec,
   clientIp,
   clientCountry,
+  isHttps,
   safeName,
   buildKey,
   fmtBytes,
@@ -65,13 +66,46 @@ export default {
       try {
         body = await request.json();
       } catch {}
+      const hasAdmin = !!(env.ADMIN_PASSWORD || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")));
+      if (!hasAdmin) {
+        return json(
+          {
+            ok: false,
+            reason: 'no_password',
+            msg: 'Worker 侧还没设置管理员密码。请在 Workers → 设置 → 变量和机密 添加 ADMIN_PASSWORD（类型选「机密」），或由 GitHub Actions 自动注入。',
+          },
+          401
+        );
+      }
       const ok = await auth.checkAdminPassword(env, String(body.password || ''));
-      if (!ok) return json({ ok: false, msg: (!env.ADMIN_PASSWORD && !(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))) ? '尚未设置管理员密码，请在 Cloudflare 添加变量 ADMIN_PASSWORD' : '密码错误' }, 401);
+      if (!ok) {
+        // 环境变量优先级高于数据库里 UI 改过的密码，这时用新密码登不上会让人困惑
+        const hasDbPwd = !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"));
+        const shadowed = !!env.ADMIN_PASSWORD && hasDbPwd;
+        let msg = isHttps(request)
+          ? '密码错误，请重新输入'
+          : '密码错误（注意：当前是 HTTP 访问，登录状态可能无法保存，请改用 HTTPS）';
+        if (shadowed) msg += '。注意：Worker 变量 ADMIN_PASSWORD 已设置，它的优先级高于后台「设置」里改过的密码，请以环境变量为准。';
+        return json({ ok: false, reason: 'bad_password', shadowed, msg }, 401);
+      }
       const token = await auth.signToken(env, { role: 'admin' }, 60 * 60 * 12);
-      return json({ ok: true }, 200, { 'Set-Cookie': auth.cookieHeader('adm', token) });
+      return json({ ok: true }, 200, { 'Set-Cookie': auth.cookieHeader('adm', token, { secure: isHttps(request) }) });
     }
     if (p === '/api/logout' && method === 'POST') {
-      return json({ ok: true }, 200, { 'Set-Cookie': auth.clearCookie('adm') });
+      return json({ ok: true }, 200, { 'Set-Cookie': auth.clearCookie('adm', { secure: isHttps(request) }) });
+    }
+
+    // 无需登录的状态探针：帮登录页判断「卡在哪一步」
+    if (p === '/api/status' && method === 'GET') {
+      return json({
+        ok: true,
+        hasAdmin: !!(env.ADMIN_PASSWORD || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))),
+        hasEnvAdmin: !!env.ADMIN_PASSWORD,
+        hasDbAdmin: !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")),
+        https: isHttps(request),
+        driver: storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容',
+        bucket: storage.label || '-',
+      });
     }
 
     // ---------- 公开路由 ----------

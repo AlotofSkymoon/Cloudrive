@@ -46,6 +46,11 @@ let r = await call('/');
 let body = await r.text();
 assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('管理员密码'));
 
+// 1.5 状态探针：无需登录就能看出卡在哪
+r = await call('/api/status');
+let st = await r.json();
+assert('状态探针显示已配置管理员密码', st.ok && st.hasAdmin === true && st.https === true, JSON.stringify(st));
+
 // 2. 登录
 r = grab(await call('/api/login', { method: 'POST', body: JSON.stringify({ password: 'wrong' }) }));
 assert('错误密码登录失败', (await r.json()).ok === false);
@@ -155,6 +160,27 @@ await call('/api/files/delete', { method: 'POST', body: JSON.stringify({ ids: al
 r = await call('/api/files');
 assert('删除文件后列表为空', (await r.json()).files.length === 0);
 assert('存储对象一并删除', env.BUCKET.store.size === 0, String(env.BUCKET.store.size));
+
+// 16. 未配置管理员密码时，登录应明确提示（不是笼统的「密码错误」）
+const env2 = { ...env, ADMIN_PASSWORD: '', DB: new FakeD1() };
+env2.DB = new FakeD1();
+const call2 = (path, opts = {}) =>
+  worker.fetch(new Request(origin + path, { ...opts, headers: { ...(opts.headers || {}) } }), env2, ctx);
+let r2 = await call2('/api/status');
+assert('未配置密码时探针如实上报', (await r2.json()).hasAdmin === false);
+r2 = await call2('/api/login', { method: 'POST', body: JSON.stringify({ password: 'whatever' }) });
+const bad = await r2.json();
+assert('未配置密码时登录给出原因', bad.ok === false && bad.reason === 'no_password', JSON.stringify(bad));
+assert('未配置密码时不下发会话 Cookie', !r2.headers.get('set-cookie'));
+
+// 17. HTTP 访问时不加 Secure，避免浏览器丢弃 Cookie
+const httpRes = await worker.fetch(
+  new Request('http://pan.example.com/api/login', { method: 'POST', body: JSON.stringify({ password: 'test123' }) }),
+  env,
+  ctx
+);
+const httpCookie = httpRes.headers.get('set-cookie') || '';
+assert('HTTP 下发的 Cookie 不带 Secure', httpCookie && !/Secure/i.test(httpCookie), httpCookie);
 
 console.log(failed ? `\n❌ ${failed} 项失败` : '\n🎉 全部通过');
 process.exit(failed ? 1 : 0);

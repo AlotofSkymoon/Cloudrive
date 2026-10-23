@@ -1,6 +1,6 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v0.3.1**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v0.3.2**，变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -173,6 +173,16 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 
 **换了桶 / 换域名后旧分享链接还能用吗？**
 分享记录里存的是对象 key，换桶后 key 还在就能用；换域名后链接的域名部分会跟着新域名走（链接是访问时按当前域名拼的）。
+
+**输入密码后一直回到登录页，进不去后台？**
+按这个顺序排查，登录页本身也会把检测结果显示出来（打开页面时会先探测一次）：
+
+1. **Worker 侧根本没设 `ADMIN_PASSWORD`** —— 最常见。登录页会红字提示「Worker 侧还没设置管理员密码」并禁用输入框。去 Workers → `filecove` → 设置 → 变量和机密，添加 `ADMIN_PASSWORD`（类型选「机密」），保存后**重新部署**才生效（改变量不会自动注入已运行的 Worker）。用 GitHub Actions 部署的话它会自动注入。
+2. **用的是 HTTP 访问** —— 登录页顶部会黄字提示。浏览器不会保存 HTTPS-only 的 Cookie，必须走 HTTPS。
+3. **在后台「设置」里改过密码，但环境变量还在** —— 环境变量 `ADMIN_PASSWORD` 优先级更高，请用环境变量那个密码登录（登录页会提示这一点）。
+4. **浏览器缓存了登录页** —— 登录成功已改为 `location.replace('/?_=时间戳')` 强制绕开缓存；还不行就硬刷新（Ctrl/Cmd + Shift + R）或清一下该站点的 Cookie。
+
+打开 `/api/status` 可以直接看到 `hasAdmin`（是否已配置密码）、`hasEnvAdmin`、`hasDbAdmin`、`https`，不需要登录。
 
 **忘记管理员密码？**
 环境变量 `ADMIN_PASSWORD` 优先级最高：去 Worker 设置里改这个机密值即可（改完重新部署生效）；删掉它就回落到数据库里 UI 改过的密码。

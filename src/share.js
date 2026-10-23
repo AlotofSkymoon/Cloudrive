@@ -11,6 +11,7 @@ import {
   nowSec,
   clientIp,
   clientCountry,
+  isHttps,
   contentDisposition,
   parseRange,
   fmtBytes,
@@ -94,7 +95,7 @@ export async function unlock(request, env, ctx, storage, cfg, code) {
     const pwd = String(body.password || '');
     const hash = await auth.hashPassword(pwd, share.salt || '');
     if (hash !== share.password_hash) return json({ ok: false, msg: '访问密码错误' }, 401);
-    cookies.push(auth.cookieHeader(`sp_${code}`, await auth.signToken(env, { c: code, t: 'pwd' }, 3600 * 6)));
+    cookies.push(auth.cookieHeader(`sp_${code}`, await auth.signToken(env, { c: code, t: 'pwd' }, 3600 * 6), { secure: isHttps(request) }));
   }
 
   if (cfg.turnstileEnabled) {
@@ -102,7 +103,7 @@ export async function unlock(request, env, ctx, storage, cfg, code) {
     if (!token) return json({ ok: false, msg: '请先完成人机验证' }, 401);
     const res = await auth.verifyTurnstile(env, token, clientIp(request), cfg);
     if (!res.ok) return json({ ok: false, msg: '人机验证未通过：' + res.error }, 401);
-    cookies.push(auth.cookieHeader(`ts_${code}`, await auth.signToken(env, { c: code, t: 'ts' }, 1800)));
+    cookies.push(auth.cookieHeader(`ts_${code}`, await auth.signToken(env, { c: code, t: 'ts' }, 1800), { secure: isHttps(request) }));
   }
 
   const headers = {};

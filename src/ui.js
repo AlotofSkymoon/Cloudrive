@@ -57,6 +57,11 @@ td.name{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowra
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);padding:11px 18px;border-radius:99px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
 .toast.on{opacity:1}
 .empty{text-align:center;padding:26px;color:var(--sub);font-size:13px}
+.alert{margin-top:12px;padding:11px 13px;border-radius:14px;font-size:12.5px;line-height:1.6}
+.alert.bad{background:rgba(255,86,86,.18);border:1px solid rgba(255,120,120,.38);color:#ffd7d7}
+.alert.warn{background:rgba(255,193,7,.16);border:1px solid rgba(255,213,79,.36);color:#ffe8a8}
+.alert b{color:#fff}
+.alert code{background:rgba(255,255,255,.14);padding:1px 5px;border-radius:6px;font-size:12px}
 .center{min-height:70vh;display:flex;align-items:center;justify-content:center}
 .login{width:100%;max-width:360px;padding:26px}
 .big{display:flex;align-items:center;gap:14px;margin-bottom:14px}
@@ -94,21 +99,49 @@ export function renderErrorPage(title, msg) {
 
 export function loginHtml() {
   return page('登录 · Filecove', `<div class="center"><div class="glass login">
-  <div class="big"><div class="icon">S3</div><div><div style="font-size:18px;font-weight:700">Filecove</div><div class="muted">R2 / S3 网盘分享系统</div></div></div>
+  <div class="big"><div class="icon">FC</div><div><div style="font-size:18px;font-weight:700">Filecove</div><div class="muted">R2 / S3 网盘分享系统</div></div></div>
+  <div id="hint"></div>
   <form id="f" onsubmit="return login()">
     <label>管理员密码</label>
     <input type="password" id="pwd" placeholder="请输入管理密码" autocomplete="current-password">
-    <button class="primary" type="submit" style="width:100%;margin-top:14px">登 录</button>
-  </form></div></div>`,
+    <button class="primary" id="btn" type="submit" style="width:100%;margin-top:14px">登 录</button>
+  </form>
+  <div id="err"></div></div></div>`,
     `
-function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},2200);}
+var $hint=document.getElementById('hint'),$err=document.getElementById('err');
+function show(el,cls,html){el.innerHTML='<div class="alert '+cls+'">'+html+'</div>';}
+async function probe(){
+  try{
+    var r=await fetch('/api/status',{cache:'no-store'});
+    var d=await r.json();
+    if(!d.hasAdmin){
+      show($hint,'bad','<b>Worker 侧还没设置管理员密码</b><br>到 Cloudflare → Workers → <code>filecove</code> → 设置 → 变量和机密，添加 <code>ADMIN_PASSWORD</code>（类型选「机密」）后重新部署；改用 GitHub Actions 部署则会自动注入。');
+      document.getElementById('pwd').disabled=true;
+      document.getElementById('btn').disabled=true;
+      return;
+    }
+    if(!d.https){
+      show($hint,'warn','<b>当前是 HTTP 访问</b><br>浏览器不会保存登录状态，请改用 HTTPS 打开本页。');
+    }
+    if(d.hasEnvAdmin&&d.hasDbAdmin){
+      show($err,'warn','Worker 变量 <code>ADMIN_PASSWORD</code> 已设置，它的优先级高于后台「设置」里改过的密码，请用环境变量那个密码登录。');
+    }
+  }catch(e){/* 探不到就正常显示表单，不影响登录 */}
+}
 async function login(){
   var pwd=document.getElementById('pwd').value;
+  $err.innerHTML='';
   var r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:pwd})});
-  var d=await r.json();
-  if(d.ok){location.href='/';}else{toast(d.msg||'登录失败');}
+  var d=await r.json().catch(function(){return {}});
+  if(d.ok){
+    // replace + 时间戳：避免命中缓存的登录页，出现「登录成功却回到登录页」
+    location.replace('/?_='+Date.now());
+    return false;
+  }
+  show($err,'bad',d.reason==='no_password'?('<b>'+(d.msg||'未设置管理员密码')+'</b>'):(d.msg||('登录失败（HTTP '+r.status+'）')));
   return false;
 }
+probe();
 document.getElementById('pwd').focus();
 `);
 }
