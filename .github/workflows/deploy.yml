@@ -61,16 +61,24 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: '0'
 
+      # 只把「确实配了值」的密钥列进上传名单。
+      # wrangler-action 对每个列出的名字都要求 env 里非空，否则直接失败，
+      # 所以没开 Turnstile、没用 S3 时必须把它们排除掉。
+      - name: 计算需要上传的密钥
+        id: secret_names
+        run: node scripts/ci-secrets.mjs
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          secrets: |
-            ADMIN_PASSWORD
-            TURNSTILE_SECRET
-            S3_ACCESS_KEY_ID
-            S3_SECRET_ACCESS_KEY
+          secrets: ${{ steps.secret_names.outputs.names }}
         env:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}

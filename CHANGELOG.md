@@ -8,6 +8,23 @@
 
 ---
 
+## 0.3.1 — 2026-10-23
+
+修掉「没配可选 Secret 就部署失败」的问题——只要没开 Turnstile 或没用 S3，Actions 就会失败。
+
+**修复**
+- `wrangler-action` 的 `secrets` 输入要求列出的每个名字在 env 里都有非空值，否则报 `Value for secret TURNSTILE_SECRET not found in environment` 并中断部署。现在改为先用 `scripts/ci-secrets.mjs` 过滤，**只把确实配了值的密钥列进上传名单**，没配的直接跳过
+- 密钥名单一律只打印名字，不打印值（`GITHUB_OUTPUT` 与日志都不含明文）
+
+**新增**
+- `scripts/ci-secrets.mjs`：输出需要上传的密钥名单，缺 `ADMIN_PASSWORD` 时明确报错
+- `CI_SECRETS_CANDIDATES` 可覆盖候选名单，方便接入自定义密钥
+- 新增 7 项测试：过滤、全量、缺必需项报错、空白值判定、输出不泄漏密钥值、自定义名单
+
+升级方式：拉最新代码重新部署即可，无破坏性变更。
+
+---
+
 ## 0.3.0 — 2026-10-23
 
 修掉 Actions 自动建库失败的问题，这是 Cloudflare 网页端之外的主推部署路径。
@@ -69,7 +86,7 @@
 ```bash
 # 1. 更新 package.json 的 version，并在上面补一段 CHANGELOG
 # 2. 提交并打 tag
-git tag -a v0.3.0 -m "v0.3.0"
+git tag -a v0.3.1 -m "v0.3.1"
 git push origin v0.3.0
 # 3. 在 GitHub 上基于该 tag 发 Release，正文抄对应版本的 CHANGELOG 段落
 ```
