@@ -185,6 +185,22 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
   await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('PUBLIC_BASE_URL', ?)").bind('https://cdn.example.com').run();
 }
 
+// 5.12 已用容量：存了文件后必须反映真实大小，不能一直显示 0
+{
+  const cookieStr = Object.values(jar).filter(Boolean).join('; ');
+  const st = await (await worker.fetch(new Request(origin + '/api/stats', { headers: { cookie: cookieStr } }), env, ctx)).json();
+  assert('stats 返回已用字节', typeof st.bytes === 'number', JSON.stringify(st));
+  assert('已用字节不是 0（存了文件就该有量）', st.bytes > 0, `bytes=${st.bytes}`);
+  assert('stats 返回容量上限', typeof st.quota === 'number', JSON.stringify(st));
+  // 再放一个 20MB 的文件，用量必须跟着涨（不能一直停在初始值）
+  const d2 = await (await call('/api/upload/presign', { method: 'POST', body: { name: 'big.bin', size: 20 * 1024 * 1024, mime: 'application/octet-stream' } })).json();
+  await env.DB.prepare('UPDATE files SET size = ? WHERE id = ?').bind(20 * 1024 * 1024, d2.fileId).run();
+  const st2 = await (await worker.fetch(new Request(origin + '/api/stats', { headers: { cookie: cookieStr } }), env, ctx)).json();
+  assert('大文件后用量累加', st2.bytes === st.bytes + 20 * 1024 * 1024, `${st.bytes} → ${st2.bytes}`);
+  // 清理，别影响后面的用例
+  await env.DB.prepare('DELETE FROM files WHERE id = ?').bind(d2.fileId).run();
+}
+
 // 6. 创建分享（密码 + 限 1 次）
 r = await call('/api/shares', {
   method: 'POST',

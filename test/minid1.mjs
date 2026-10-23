@@ -138,6 +138,21 @@ class Stmt {
         const cname = /AS\s+(\w+)/i.exec(m[1])?.[1] || 'c';
         return { rows: [{ [cname]: res.length }] };
       }
+      // 聚合：SUM(col) / COALESCE(SUM(col), N) / MAX(col) 等
+      const agg = /(?:COALESCE\(\s*)?(\w+)\(\s*([\w.]+)\s*\)/i.exec(m[1]);
+      if (agg) {
+        const fn = agg[1].toUpperCase();
+        const col = agg[2].split('.').pop();
+        const cname = /AS\s+(\w+)/i.exec(m[1])?.[1] || agg[1].toLowerCase();
+        const nums = res.map((r) => Number(pick(r, col)) || 0);
+        let val = 0;
+        if (fn === 'SUM') val = nums.reduce((a, b) => a + b, 0);
+        else if (fn === 'MAX') val = nums.length ? Math.max(...nums) : 0;
+        else if (fn === 'MIN') val = nums.length ? Math.min(...nums) : 0;
+        else if (fn === 'COUNT') val = res.length;
+        else throw new Error('MiniD1 不支持的聚合: ' + fn);
+        return { rows: [{ [cname]: val }] };
+      }
       return { rows: res.map((r) => project(r, m[1])) };
     }
     throw new Error('MiniD1 不支持的 SQL: ' + sql);

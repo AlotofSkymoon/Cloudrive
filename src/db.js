@@ -79,6 +79,8 @@ export const SEED_DEFAULTS = {
   MULTIPART_THRESHOLD: '104857600',
   MULTIPART_PART_SIZE: '16777216',
   TURNSTILE_ENABLED: '0',
+  // 容量上限（GB），仅用于侧栏进度条显示；0 = 不显示进度
+  STORAGE_QUOTA_GB: '10',
 };
 
 // 只补缺失的键，已有的（用户改过的）一律不动
@@ -163,6 +165,7 @@ export async function configSources(env) {
     S3_ENDPOINT: one('S3_ENDPOINT'),
     S3_BUCKET: one('S3_BUCKET'),
     MULTIPART_THRESHOLD: one('MULTIPART_THRESHOLD'),
+    STORAGE_QUOTA_GB: one('STORAGE_QUOTA_GB'),
   };
 }
 
@@ -191,6 +194,7 @@ export async function config(env) {
     s3Region: pick('S3_REGION', 'auto'),
     s3ForcePathStyle: pick('S3_FORCE_PATH_STYLE', 'true') !== 'false',
     s3HasKey: !!(pick('S3_ACCESS_KEY_ID', '') && pick('S3_SECRET_ACCESS_KEY', '')),
+    storageQuotaGb: Number(pick('STORAGE_QUOTA_GB', '10')) || 0,
   };
 }
 

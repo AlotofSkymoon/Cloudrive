@@ -756,11 +756,18 @@ async function loadStats(){
   $('n-files').textContent=d.files||0;
   $('n-shares').textContent=d.shares||0;
   $('n-logs').textContent=d.downloads||0;
-  $('count').textContent=(d.files||0)+' 个对象 · '+fmt(d.bytes||0);
-  // 免费额度 10GB 作为参考上限
-  var cap=10*1073741824,pct=Math.min(100,(d.bytes||0)/cap*100);
-  $('usage-bar').style.width=pct.toFixed(2)+'%';
-  $('usage').textContent=fmt(d.bytes||0)+' / 10 GB';
+  var used=Number(d.bytes)||0;
+  $('count').textContent=(d.files||0)+' 个对象 · '+fmt(used);
+  // 容量上限可在设置页改（默认按 R2 免费额度 10 GB），填 0 表示不显示进度
+  var capGb=Number(d.quota)||0;
+  if(capGb>0){
+    var cap=capGb*1073741824,pct=Math.min(100,used/cap*100);
+    $('usage-bar').style.width=pct.toFixed(2)+'%';
+    $('usage').textContent=fmt(used)+' / '+fmt(cap);
+  }else{
+    $('usage-bar').style.width='0%';
+    $('usage').textContent=fmt(used);
+  }
 }
 
 /* ---------- 文件 ---------- */
@@ -1161,6 +1168,7 @@ async function loadCfg(){
      '<select id="c-driver">'+[['auto','auto — 有 S3 配置用 S3，否则 R2 绑定'],['r2','r2 — 只用 R2 绑定'],['s3','s3 — 只用 S3 兼容']].map(function(m){
        return '<option value="'+m[0]+'"'+(c.storageDriver===m[0]?' selected':'')+'>'+m[1]+'</option>';}).join('')+'</select>','STORAGE_DRIVER')+
    field('R2 桶名','R2 绑定模式下仅用于显示',numInput('c-r2b',c.r2BucketName||'',''),'R2_BUCKET_NAME')+
+   field('容量上限','只影响侧栏进度条，填 0 不显示',numInput('c-quota',c.storageQuotaGb||0,'GB',' style="max-width:64px"'),'STORAGE_QUOTA_GB')+
    field('S3 Endpoint','B2 / COS / OSS / MinIO / R2 的 S3 API 地址',numInput('c-s3e',c.s3Endpoint||'',''),'S3_ENDPOINT')+
    field('S3 桶','',numInput('c-s3b',c.s3Bucket||'',''),'S3_BUCKET')+
    field('S3 区域','R2 填 auto',numInput('c-s3r',c.s3Region||'auto',''),'S3_REGION')+
@@ -1172,7 +1180,7 @@ async function loadCfg(){
   var sw=$('c-ton');
   sw.onclick=function(){var on=sw.classList.toggle('on');$('c-ton-txt').textContent=on?'已开启':'已关闭';markDirty();};
   var ids=['c-base','c-mode','c-ipmax','c-win','c-ban','c-traffic','c-tkey','c-tsec','c-pwd',
-           'c-umax','c-mth','c-mps','c-driver','c-r2b','c-s3e','c-s3b','c-s3r','c-s3ak','c-s3sk'];
+           'c-umax','c-mth','c-mps','c-driver','c-r2b','c-s3e','c-s3b','c-s3r','c-s3ak','c-s3sk','c-quota'];
   for(var i=0;i<ids.length;i++){var el=$(ids[i]);if(el)el.addEventListener('input',markDirty);if(el&&el.tagName==='SELECT')el.addEventListener('change',markDirty);}
   DIRTY=false;updateSave();
   $('s-mode').textContent='直链 '+(c.downloadMode||'auto');
@@ -1214,6 +1222,7 @@ $('saveCfg').onclick=async function(){
     multipartThreshold:Math.round((Number($('c-mth').value)||100)*1048576),
     multipartPartSize:Math.round((Number($('c-mps').value)||16)*1048576),
     storageDriver:$('c-driver').value,r2BucketName:$('c-r2b').value,
+    storageQuotaGb:Number($('c-quota').value)||0,
     s3Endpoint:$('c-s3e').value,s3Bucket:$('c-s3b').value,s3Region:$('c-s3r').value,
     s3AccessKeyId:$('c-s3ak').value,s3SecretAccessKey:$('c-s3sk').value}});
   if(d){toast('设置已保存');DIRTY=false;loadCfg();}

@@ -444,13 +444,18 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
     const s = await db.get(env, 'SELECT COUNT(*) AS c FROM shares');
     const d = await db.get(env, "SELECT COUNT(*) AS c FROM logs WHERE action = 'download'");
     const traffic = await limit.monthlyTraffic(env);
+    // 已用容量：之前这里没返回 bytes，前端 fmt(d.bytes||0) 永远是 0 B
+    const b = await db.get(env, 'SELECT COALESCE(SUM(size), 0) AS t FROM files');
     return json({
       ok: true,
       files: f?.c || 0,
       shares: s?.c || 0,
       downloads: d?.c || 0,
+      bytes: Number(b?.t) || 0,
       traffic,
       limit: cfg.monthlyTrafficLimit,
+      driver: storage.driver,
+      quota: cfg.storageQuotaGb,
     });
   }
 
@@ -502,6 +507,7 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
       MULTIPART_THRESHOLD: b.multipartThreshold,
       MULTIPART_PART_SIZE: b.multipartPartSize,
       STORAGE_DRIVER: b.storageDriver,
+      STORAGE_QUOTA_GB: b.storageQuotaGb,
       R2_BUCKET_NAME: b.r2BucketName,
       S3_ENDPOINT: b.s3Endpoint,
       S3_BUCKET: b.s3Bucket,
