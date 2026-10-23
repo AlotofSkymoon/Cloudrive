@@ -175,6 +175,12 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 **忘记管理员密码？**
 环境变量 `ADMIN_PASSWORD` 优先级最高：去 Worker 设置里改这个机密值即可（改完重新部署生效）；删掉它就回落到数据库里 UI 改过的密码。
 
+**自动建库是怎么实现的？需要装 wrangler 吗？**
+脚本走 Cloudflare REST API（`/d1/database`、`/r2/buckets`），返回的是确定的 JSON，不依赖 `wrangler d1 create` 的输出格式；只有 REST 调不通时才回退到 wrangler CLI 解析文本。能拿到 uuid 后自动写回 `wrangler.toml` 的 `database_id`。
+
+**想指定数据库 / 桶的地理位置？**
+在仓库 Secrets 之外，用仓库变量（Variables）加 `D1_LOCATION` 或 `R2_LOCATION`，可选值：`wnam`（北美西）、`enam`（北美东）、`weur`（西欧）、`eeur`（东欧）、`apac`（亚太）、`oc`（大洋洲）。不填就由 Cloudflare 自动选。
+
 **Actions 报权限错误 / 建库失败？**
 多半是 API 令牌权限不够。确认令牌有 **Workers Scripts: 编辑**、**D1: 编辑**、**R2: 编辑** 三项（用「编辑 Cloudflare Workers」模板最省事），并且 `CLOUDFLARE_ACCOUNT_ID` 填的是账户 ID 而不是区域 ID。
 
