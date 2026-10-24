@@ -1,5 +1,5 @@
 // 验证「补缺不覆盖」的变量写入逻辑（Worker 已有的变量必须原样保留）
-import { test } from 'node:test';
+import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -85,17 +85,17 @@ test('不配置时不铺任何默认值', async () => {
   assert.match(r.out, /不铺默认值/);
 });
 
-test('即使 Worker 上一个变量都没有也不铺默认值', async (t) => {
+test('即使 Worker 上一个变量都没有也不铺默认值', async () => {
   const api = await mockVars([]);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(parseNames(r.gh), []);
 });
 
-test('Worker 上已有的变量一个都不动', async (t) => {
+test('Worker 上已有的变量一个都不动', async () => {
   const api = await mockVars(['DOWNLOAD_MODE', 'IP_MAX_DOWNLOADS', 'BAN_MINUTES']);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({
     CF_API_BASE: api.base,
     CLOUDFLARE_API_TOKEN: 'tok',
@@ -109,9 +109,9 @@ test('Worker 上已有的变量一个都不动', async (t) => {
   assert.deepEqual(keys, [], '未声明时不应写入任何变量');
 });
 
-test('PRESET_VARS 显式声明的会写入，即使已有同名变量', async (t) => {
+test('PRESET_VARS 显式声明的会写入，即使已有同名变量', async () => {
   const api = await mockVars(['DOWNLOAD_MODE']);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({
     PRESET_VARS: 'DOWNLOAD_MODE=proxy',
     CF_API_BASE: api.base,
@@ -126,27 +126,27 @@ test('PRESET_VARS 显式声明的会写入，即使已有同名变量', async (t
   assert.match(r.out, /按 PRESET_VARS 覆盖/);
 });
 
-test('变量都在时不写入任何东西', async (t) => {
+test('变量都在时不写入任何东西', async () => {
   const all = ['STORAGE_DRIVER', 'R2_BUCKET_NAME', 'DOWNLOAD_MODE', 'IP_MAX_DOWNLOADS', 'IP_WINDOW_SECONDS', 'BAN_MINUTES', 'MONTHLY_TRAFFIC_LIMIT', 'UPLOAD_MAX_SIZE', 'MULTIPART_THRESHOLD', 'MULTIPART_PART_SIZE', 'TURNSTILE_ENABLED'];
   const api = await mockVars(all);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(parseNames(r.gh), []);
   assert.match(r.out, /都已就位/);
 });
 
-test('读取失败时按首次部署处理，不中断流程', async (t) => {
+test('读取失败时按首次部署处理，不中断流程', async () => {
   const api = await mockVars([], { fail: true });
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
   assert.equal(r.code, 0, r.out);
   assert.equal(r.code, 0, '读取失败不该让流程中断');
 });
 
-test('secret / r2 绑定不会被误判为文本变量', async (t) => {
+test('secret / r2 绑定不会被误判为文本变量', async () => {
   const api = await mockVars([]);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({ CF_API_BASE: api.base, CLOUDFLARE_API_TOKEN: 'tok', CLOUDFLARE_ACCOUNT_ID: 'acct' });
   assert.equal(r.code, 0, r.out);
   const keys = parseNames(r.gh);

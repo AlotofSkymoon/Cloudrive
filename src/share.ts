@@ -2,7 +2,7 @@
 import * as db from './db.js';
 import * as limit from './limit.js';
 import * as auth from './auth.js';
-import { shareHtml, renderErrorPage } from './ui.js';
+import { spaHtml, errorResponse } from './page.js';
 import {
   json,
   html,
@@ -56,7 +56,7 @@ async function trafficGuard(env, cfg) {
 // GET /s/:code 分享页面
 export async function sharePage(request, env, ctx, storage, cfg, code) {
   const share = await loadShare(env, code);
-  if (!share) return renderErrorPage('链接不存在', '这个分享链接无效或已被删除。');
+  if (!share) return errorResponse('链接不存在', '这个分享链接无效或已被删除。');
   const err = checkExpired(share);
   const ip = clientIp(request);
   const ban = await limit.isBanned(env, ip);
@@ -64,16 +64,27 @@ export async function sharePage(request, env, ctx, storage, cfg, code) {
   const verifiedTurnstile = !cfg.turnstileEnabled || !!(await auth.verifyToken(env, auth.readCookie(request, `ts_${code}`)));
 
   return html(
-    shareHtml({
-      code,
-      share,
-      error: err,
-      banned: !!ban,
-      banUntil: ban?.until || 0,
-      needPassword: !verifiedPwd,
-      needTurnstile: cfg.turnstileEnabled && !verifiedTurnstile,
-      turnstileSitekey: cfg.turnstileSitekey,
-      origin: new URL(request.url).origin,
+    spaHtml({
+      view: 'share',
+      title: `${share.name} · Filecove`,
+      boot: {
+        code,
+        share: {
+          code,
+          file_name: share.file_name,
+          file_size: share.file_size || 0,
+          file_mime: share.file_mime || '',
+          created_at: share.created_at || 0,
+          expires_at: share.expires_at || 0,
+          downloads: share.downloads || 0,
+          max_downloads: share.max_downloads || 0,
+          error: err || '',
+          banned: !!ban,
+        },
+        need_password: !verifiedPwd,
+        need_turnstile: cfg.turnstileEnabled && !verifiedTurnstile,
+        turnstile_sitekey: cfg.turnstileSitekey || '',
+      },
     })
   );
 }
@@ -85,7 +96,7 @@ export async function unlock(request, env, ctx, storage, cfg, code) {
   const err = checkExpired(share);
   if (err) return json({ ok: false, msg: err }, 403);
 
-  let body = {};
+  let body: any = {};
   try {
     body = await request.json();
   } catch {}
@@ -114,14 +125,14 @@ export async function unlock(request, env, ctx, storage, cfg, code) {
 // GET /d/:code（附件下载）/ GET /raw/:code（在线预览）—— 最终都 302 到存储直链
 export async function doDownload(request, env, ctx, storage, cfg, code, { inline = false } = {}) {
   const share = await loadShare(env, code);
-  if (!share) return renderErrorPage('链接不存在', '这个分享链接无效或已被删除。');
+  if (!share) return errorResponse('链接不存在', '这个分享链接无效或已被删除。');
 
   const ip = clientIp(request);
   const ban = await limit.isBanned(env, ip);
-  if (ban) return renderErrorPage('访问受限', `你的 IP 已被临时限制，请稍后再试。`);
+  if (ban) return errorResponse('访问受限', '你的 IP 已被临时限制，请稍后再试。');
 
   const err = checkExpired(share);
-  if (err) return renderErrorPage('无法下载', err);
+  if (err) return errorResponse('无法下载', err);
 
   if (share.password_hash) {
     const token = auth.readCookie(request, `sp_${code}`);
@@ -133,9 +144,9 @@ export async function doDownload(request, env, ctx, storage, cfg, code, { inline
     if (!data || data.c !== code) return redirectTo(request, `/s/${code}?need=ts`, 302);
   }
   const rateErr = await ipGuard(env, request, cfg);
-  if (rateErr) return renderErrorPage('访问受限', rateErr.error);
+  if (rateErr) return errorResponse('访问受限', rateErr.error);
   const trafficErr = await trafficGuard(env, cfg);
-  if (trafficErr) return renderErrorPage('流量超限', trafficErr.error);
+  if (trafficErr) return errorResponse('流量超限', trafficErr.error);
 
   const size = Number(share.file_size) || 0;
   // 计次（超过上限时不会写入）
@@ -195,7 +206,7 @@ async function proxyDownload(request, env, storage, share, inline, disposition) 
   const rangeHeader = request.headers.get('range');
   const range = rangeHeader ? parseRange(rangeHeader, Number(share.file_size) || 0) : null;
   const obj = await storage.get(share.file_key, range);
-  if (!obj) return renderErrorPage('文件不存在', '对象已被删除或存储配置有误。');
+  if (!obj) return errorResponse('文件不存在', '对象已被删除或存储配置有误。');
   const headers = new Headers();
   headers.set('content-type', share.file_mime || obj.contentType || 'application/octet-stream');
   headers.set('content-disposition', disposition);

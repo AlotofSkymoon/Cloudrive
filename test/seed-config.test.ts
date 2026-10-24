@@ -1,7 +1,7 @@
 // 验证「配置存在数据库里」：首次运行补默认值，且改过的值不被覆盖
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { FakeD1 } from './minid1.mjs';
+import { FakeD1 } from './minid1';
 
 const { seedConfig, envWithSettings, allSettings } = await import('../src/db.js');
 

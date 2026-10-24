@@ -103,7 +103,7 @@ export async function signRequest(cfg, { method = 'GET', url, headers = {}, body
   const canonicalRequest = [
     method,
     u.pathname,
-    canonicalQuery(Object.fromEntries(u.searchParams.entries())),
+    canonicalQuery(Object.fromEntries(Array.from((u.searchParams as any).entries()) as [string, string][])),
     canonicalHeaders,
     signedHeaders.join(';'),
     payloadHash,
@@ -117,7 +117,7 @@ export async function signRequest(cfg, { method = 'GET', url, headers = {}, body
   return h;
 }
 
-export async function signedFetch(cfg, url, opts = {}) {
+export async function signedFetch(cfg: any, url: string, opts: any = {}) {
   const { method = 'GET', headers = {}, body = null } = opts;
   const signed = await signRequest(cfg, { method, url, headers, body });
   return fetch(url, { method, headers: signed, body });

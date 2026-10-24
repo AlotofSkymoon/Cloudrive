@@ -1,9 +1,9 @@
 // 验证「直链域名规范化」——修的是图里那个 404
 // 只填 v6.cc.cd 时，拼出来的 URL 没有 scheme，浏览器会按当前路径解析成
 // /d/v6.cc.cd/... 这种不存在的路径，直接 404。
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { normalizeOrigin } from '../src/util.js';
+import { normalizeOrigin } from '../src/util';
 
 test('裸域名自动补 https', () => {
   assert.equal(normalizeOrigin('v6.cc.cd'), 'https://v6.cc.cd');

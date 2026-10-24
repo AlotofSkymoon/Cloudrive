@@ -1,5 +1,5 @@
 // 验证「只上传已配置的密钥，且保留 Worker 上已有的值」
-import { test } from 'node:test';
+import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -77,9 +77,9 @@ test('缺 ADMIN_PASSWORD 时明确报错退出，且不写入输出', async () =
   assert.equal(r.gh, '', '失败时不应写入 GITHUB_OUTPUT');
 });
 
-test('GitHub 没配但 Worker 上已有时不报错、不覆盖', async (t) => {
+test('GitHub 没配但 Worker 上已有时不报错、不覆盖', async () => {
   const api = await mockSecretsApi(['ADMIN_PASSWORD']);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({
     ADMIN_PASSWORD: '',
     CF_API_BASE: api.base,
@@ -91,9 +91,9 @@ test('GitHub 没配但 Worker 上已有时不报错、不覆盖', async (t) => {
   assert.deepEqual(namesOf(r.gh), [], '已有值不应被重新上传覆盖');
 });
 
-test('两边都配了以上传的为准（显式声明优先）', async (t) => {
+test('两边都配了以上传的为准（显式声明优先）', async () => {
   const api = await mockSecretsApi(['ADMIN_PASSWORD']);
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({
     ADMIN_PASSWORD: 'from-github',
     CF_API_BASE: api.base,
@@ -104,9 +104,9 @@ test('两边都配了以上传的为准（显式声明优先）', async (t) => {
   assert.deepEqual(namesOf(r.gh), ['ADMIN_PASSWORD']);
 });
 
-test('查询已有密钥失败时优雅降级为「未配置」', async (t) => {
+test('查询已有密钥失败时优雅降级为「未配置」', async () => {
   const api = await mockSecretsApi([], { fail: true });
-  t.after(api.close);
+  afterEach(api.close);
   const r = await run({
     ADMIN_PASSWORD: 'p@ss',
     CF_API_BASE: api.base,

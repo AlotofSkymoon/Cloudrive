@@ -1,6 +1,7 @@
 // 端到端冒烟测试（用本地模拟的 D1 / R2 跑完整流程）
-import { FakeD1, FakeBucket } from './minid1.mjs';
-import worker from '../src/index.js';
+import { test, expect } from 'vitest';
+import { FakeD1, FakeBucket } from './minid1';
+import worker from '../src/index';
 
 const env = {
   DB: new FakeD1(),
@@ -44,28 +45,26 @@ function assert(name, cond, extra = '') {
 // 1. 未登录 → 登录页
 let r = await call('/');
 let body = await r.text();
-assert('未登录访问 / 返回登录页', body.includes('Filecove') && body.includes('登录密码') && body.includes('login(event)'));
+{
+  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  assert('未登录访问 / 返回登录页', !!boot && JSON.parse(boot[1]).view === 'login', body.slice(0, 120));
+  // 登录页还要带上状态探针，才能提示「没设密码 / HTTP 访问」
+  assert('登录页注入了状态探针', !!boot && !!JSON.parse(boot[1]).status, '缺少 status');
+}
 
 // 1.5 状态探针：无需登录就能看出卡在哪
 r = await call('/api/status');
 let st = await r.json();
 assert('状态探针显示已配置管理员密码', st.ok && st.hasAdmin === true && st.https === true, JSON.stringify(st));
 
-// 1.6 登录表单的 onsubmit 必须同步返回 false
-// （async 函数返回 Promise，是「真值」——只写 return login() 阻止不了表单默认提交，
-//   浏览器会立刻原生导航，把 /api/login 请求掐断，表现为「刷新后又回到登录页」）
+// 1.6 页面外壳不该再内联 onsubmit
+// （以前内联 `return login()` 时，async 返回 Promise 属真值，挡不住表单默认提交，
+//   浏览器原生导航会把 /api/login 掐断，表现为「刷新后又回到登录页」。
+//   现在前端由 Vue 渲染，用 @submit.prevent，外壳里不该出现内联事件属性）
 {
   const page = await (await worker.fetch(new Request(origin + '/'), env, ctx)).text();
-  const m = /<form[^>]*onsubmit="([^"]+)"/.exec(page);
-  assert('登录页能取到表单的 onsubmit', !!m);
-  if (m) {
-    // 用真实的 handler 字符串构造一个函数，模拟浏览器对返回值的判定
-    const fn = new Function('event', 'login', m[1]);
-    const ret = fn({ preventDefault() {} }, async () => {});
-    assert('onsubmit 同步返回 false（而非 Promise）', ret === false, `实际返回: ${String(ret)}`);
-    // 双保险：login() 内部也应自己 preventDefault，避免以后改属性时又退化
-    assert('login() 内部也调用了 preventDefault', /async function login\(e\)[\s\S]{0,400}?preventDefault/.test(page));
-  }
+  assert('页面外壳不含内联 onsubmit', !/onsubmit\s*=/.test(page), '出现了内联 onsubmit');
+  assert('页面外壳不含内联 onclick', !/onclick\s*=/.test(page), '出现了内联 onclick');
 }
 
 // 2. 登录
@@ -77,7 +76,12 @@ assert('正确密码登录成功', (await r.json()).ok === true && (jar.adm || '
 // 3. 后台
 r = await call('/');
 body = await r.text();
-assert('已登录访问 / 返回管理后台', body.includes('Filecove') && body.includes('panel-files') && body.includes('上传'));
+{
+  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  const b = boot ? JSON.parse(boot[1]) : null;
+  assert('已登录访问 / 返回管理后台', !!b && b.view === 'admin', body.slice(0, 120));
+  assert('后台页带上了存储信息', !!b && !!b.driver && !!b.bucket, JSON.stringify(b));
+}
 
 // 4. 上传（R2 绑定 → worker 模式）
 r = await call('/api/upload/presign', {
@@ -213,7 +217,13 @@ const code = sh.code;
 // 7. 分享页
 r = await call(`/s/${code}`);
 body = await r.text();
-assert('分享页渲染正常', body.includes('你好 world.txt') && body.includes('访问密码'));
+{
+  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  const b = boot ? JSON.parse(boot[1]) : null;
+  assert('分享页渲染正常', !!b && b.view === 'share', body.slice(0, 120));
+  assert('分享页带上了文件信息', !!b && b.share && b.share.file_name === '你好 world.txt', JSON.stringify(b?.share));
+  assert('需要密码时标注 need_password', !!b && b.need_password === true, JSON.stringify(b));
+}
 
 // 8. 未输密码直接下载 → 跳回分享页（清掉访客 cookie，保留后台登录态）
 for (const k of Object.keys(jar)) if (k !== 'adm') delete jar[k];
@@ -320,5 +330,8 @@ const httpRes = await worker.fetch(
 const httpCookie = httpRes.headers.get('set-cookie') || '';
 assert('HTTP 下发的 Cookie 不带 Secure', httpCookie && !/Secure/i.test(httpCookie), httpCookie);
 
-console.log(failed ? `\n❌ ${failed} 项失败` : '\n🎉 全部通过');
-process.exit(failed ? 1 : 0);
+// 上面的流程是顺序执行的脚本，这里统一收口成一条断言，
+// 失败时 vitest 会显示具体是哪一项（前面的 ❌ 行已经打印出来了）
+test('端到端流程全部通过', () => {
+  expect(failed, `有 ${failed} 项断言失败，见上面的 ❌ 输出`).toBe(0);
+});

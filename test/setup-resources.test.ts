@@ -1,6 +1,6 @@
 // 验证「自动建 D1 并写回 database_id」的脚本逻辑
 // 起一个本地 HTTP 服务模拟 Cloudflare API（通过 CF_API_BASE 指过去），全程不联网。
-import { test } from 'node:test';
+import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -99,7 +99,7 @@ const idOf = (toml) => (/database_id\s*=\s*"([^"]*)"/.exec(toml) || [])[1];
 const UUID_A = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 const UUID_B = '99999999-8888-7777-6666-555555555555';
 
-test('库已存在时复用，并把 uuid 写回 wrangler.toml', async (t) => {
+test('库已存在时复用，并把 uuid 写回 wrangler.toml', async () => {
   const api = await mockApi(({ method, path, query }) => {
     if (path === '/client/v4/accounts/acct-0001/d1/database' && method === 'GET') {
       return query.get('name') === 'filecove' ? okList([{ name: 'filecove', uuid: UUID_A }]) : okList([]);
@@ -107,7 +107,7 @@ test('库已存在时复用，并把 uuid 写回 wrangler.toml', async (t) => {
     if (path === '/client/v4/accounts/acct-0001/r2/buckets') return okList([]);
     return errRes(404, 'unexpected');
   });
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare('待自动填充');
   const r = await run(dir, { base: api.base });
   assert.equal(r.code, 0, r.out);
@@ -115,7 +115,7 @@ test('库已存在时复用，并把 uuid 写回 wrangler.toml', async (t) => {
   assert.equal(idOf(r.toml), UUID_A);
 });
 
-test('库不存在时创建，并把新 uuid 写回 wrangler.toml', async (t) => {
+test('库不存在时创建，并把新 uuid 写回 wrangler.toml', async () => {
   const api = await mockApi(({ method, path }) => {
     if (path === '/client/v4/accounts/acct-0001/d1/database') {
       return method === 'GET' ? okList([{ name: 'other-db', uuid: '11111111-2222-3333-4444-555555555555' }]) : okOne({ uuid: UUID_B, name: 'filecove' });
@@ -125,7 +125,7 @@ test('库不存在时创建，并把新 uuid 写回 wrangler.toml', async (t) =>
     }
     return errRes(404, 'unexpected');
   });
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare('待自动填充');
   const r = await run(dir, { base: api.base });
   assert.equal(r.code, 0, r.out);
@@ -134,13 +134,13 @@ test('库不存在时创建，并把新 uuid 写回 wrangler.toml', async (t) =>
   assert.ok(api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/d1/database')));
 });
 
-test('database_id 已是合法 UUID 时原样保留，且不碰 D1 接口', async (t) => {
+test('database_id 已是合法 UUID 时原样保留，且不碰 D1 接口', async () => {
   const api = await mockApi(({ path }) => {
     if (path.includes('/d1/')) return errRes(500, 'D1 接口不应被调用');
     if (path.endsWith('/r2/buckets')) return { json: { success: true, result: { buckets: [{ name: 'filecove' }] } } };
     return errRes(404, 'unexpected');
   });
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare(UUID_A);
   const r = await run(dir, { base: api.base });
   assert.equal(r.code, 0, r.out);
@@ -149,7 +149,7 @@ test('database_id 已是合法 UUID 时原样保留，且不碰 D1 接口', asyn
   assert.ok(!api.calls.some((c) => c.path.includes('/d1/')), '不应调用 D1 接口');
 });
 
-test('创建时返回"已存在"则转为复用，不会失败', async (t) => {
+test('创建时返回"已存在"则转为复用，不会失败', async () => {
   let listed = 0;
   const api = await mockApi(({ method, path }) => {
     if (path.endsWith('/d1/database')) {
@@ -163,7 +163,7 @@ test('创建时返回"已存在"则转为复用，不会失败', async (t) => {
     if (path.endsWith('/r2/buckets')) return okList([]);
     return errRes(404, 'unexpected');
   });
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare('待自动填充');
   const r = await run(dir, { base: api.base });
   assert.equal(r.code, 0, r.out);
@@ -171,13 +171,13 @@ test('创建时返回"已存在"则转为复用，不会失败', async (t) => {
   assert.equal(idOf(r.toml), UUID_A);
 });
 
-test('R2 桶已存在时跳过创建', async (t) => {
+test('R2 桶已存在时跳过创建', async () => {
   const api = await mockApi(({ method, path }) => {
     if (path.endsWith('/d1/database')) return method === 'GET' ? okList([{ name: 'filecove', uuid: UUID_A }]) : okOne({ uuid: UUID_A });
     if (path.endsWith('/r2/buckets')) return method === 'GET' ? { json: { success: true, result: { buckets: [{ name: 'filecove' }] } } } : errRes(500, 'should not create');
     return errRes(404, 'unexpected');
   });
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare(UUID_A);
   const r = await run(dir, { base: api.base });
   assert.equal(r.code, 0, r.out);
@@ -185,9 +185,9 @@ test('R2 桶已存在时跳过创建', async (t) => {
   assert.ok(!api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/r2/buckets')));
 });
 
-test('API 鉴权失败时回退 wrangler，仍能拿到 uuid', async (t) => {
+test('API 鉴权失败时回退 wrangler，仍能拿到 uuid', async () => {
   const api = await mockApi(() => errRes(401, 'Invalid API token'));
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare('待自动填充');
   const bin = fakeWrangler(dir, {
     listOut: '',
@@ -199,9 +199,9 @@ test('API 鉴权失败时回退 wrangler，仍能拿到 uuid', async (t) => {
   assert.equal(idOf(r.toml), UUID_B);
 });
 
-test('API 与 wrangler 都失败时明确报错退出', async (t) => {
+test('API 与 wrangler 都失败时明确报错退出', async () => {
   const api = await mockApi(() => errRes(403, 'insufficient permissions'));
-  t.after(api.close);
+  afterEach(api.close);
   const dir = prepare('待自动填充');
   const bin = fakeWrangler(dir, { listOut: '', createOut: 'Error: no permission' });
   const r = await run(dir, { base: api.base, wranglerBin: bin });

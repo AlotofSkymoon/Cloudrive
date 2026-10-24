@@ -1,6 +1,6 @@
 # Filecove —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v1.0.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v1.1.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -14,7 +14,31 @@
 
 ## 关于版本
 
-**v1.0.0 是成品版**。功能已经完整可用，后续只会做维护和少量改进——修 bug、小幅优化体验、适配 Cloudflare 平台变化，不会有破坏性改动。
+**成品版**，功能已经完整可用，后续只会做维护和少量改进——修 bug、小幅优化体验、适配 Cloudflare 平台变化，不会有破坏性改动。
+
+## 技术栈
+
+| 层 | 用的东西 |
+| --- | --- |
+| 运行时 | Cloudflare **Workers**（不是 Pages），无构建产物的额外托管 |
+| 后端 | **TypeScript**（原生 fetch 路由，无框架） |
+| 前端 | **Vue 3** + **Tailwind CSS**，用 Vite 构建 |
+| 数据库 | D1（文件、分享、记录、封禁、配置） |
+| 存储 | R2 绑定 或 任意 S3 兼容存储 |
+
+前端是**构建后内联进 Worker** 的（`npm run build` → `src/web-assets.ts`），所以部署仍然只有一个 Worker 入口，不需要静态资源绑定。
+
+本地开发：
+
+```bash
+npm install
+npm run dev            # wrangler dev
+npm run build          # 构建前端并内联（部署前必做）
+npm run typecheck      # tsc --noEmit
+npm test               # vitest
+```
+
+用 Actions 部署的话这些会自动跑，不用手动执行。
 
 ## 界面
 

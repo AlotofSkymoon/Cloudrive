@@ -1,6 +1,6 @@
 // 版本散落在三个地方，改一处漏两处就会出现「页脚写着旧版本」。
 // 这里把三者钉在一起。
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -12,9 +12,9 @@ function pkgVersion() {
   return JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 }
 function uiVersion() {
-  const src = readFileSync(join(ROOT, 'src', 'ui.js'), 'utf8');
+  const src = readFileSync(join(ROOT, 'src', 'page.ts'), 'utf8');
   const m = /export const VERSION\s*=\s*'([^']+)'/.exec(src);
-  assert.ok(m, 'src/ui.js 里找不到 VERSION 常量');
+  assert.ok(m, 'src/page.ts 里找不到 VERSION 常量');
   return m[1];
 }
 function readmeVersion() {
@@ -31,22 +31,25 @@ function changelogLatest() {
   return m[1];
 }
 
-test('package.json / ui.js / README / CHANGELOG 版本号一致', () => {
+test('package.json / page.ts / README / CHANGELOG 版本号一致', () => {
   const pkg = pkgVersion();
-  assert.equal(uiVersion(), pkg, `src/ui.js 的 VERSION 是 ${uiVersion()}，package.json 是 ${pkg}`);
+  assert.equal(uiVersion(), pkg, `src/page.ts 的 VERSION 是 ${uiVersion()}，package.json 是 ${pkg}`);
   assert.equal(readmeVersion(), pkg, `README 顶部是 ${readmeVersion()}，package.json 是 ${pkg}`);
   assert.equal(changelogLatest(), pkg, `CHANGELOG 最新条目是 ${changelogLatest()}，package.json 是 ${pkg}`);
 });
 
-test('当前版本为成品版 1.0.0', () => {
-  assert.equal(pkgVersion(), '1.0.0');
+test('当前版本为 1.1.0', () => {
+  assert.equal(pkgVersion(), '1.1.0');
 });
 
-test('页面渲染出的页脚带版本号', async () => {
-  const { adminHtml, loginHtml } = await import('../src/ui.js');
+test('页面渲染出的首屏数据带版本号', async () => {
+  const { spaHtml } = await import('../src/page');
   const v = uiVersion();
-  assert.ok(adminHtml({ driver: 'R2', bucket: 'f' }).includes('v' + v), '后台页应显示版本号');
-  assert.ok(loginHtml().includes('v' + v), '登录页应显示版本号');
+  for (const view of ['admin', 'login', 'share', 'error']) {
+    const m = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(spaHtml({ view }));
+    assert.ok(m, `${view} 页没有注入首屏数据`);
+    assert.equal(JSON.parse(m[1]).version, v, `${view} 页注入的版本号不对`);
+  }
 });
 
 // 仓库里应该只剩 1.0.0：文档、源码、脚本里都不该再出现 0.x 的版本痕迹
@@ -55,17 +58,18 @@ test('文档与源码里不留旧版本号痕迹', () => {
     'README.md',
     'CHANGELOG.md',
     'package.json',
-    'src/index.js',
-    'src/ui.js',
-    'src/db.js',
-    'src/storage.js',
-    'src/logo.js',
+    'src/index.ts',
+    'src/page.ts',
+    'src/db.ts',
+    'src/storage.ts',
+    'src/logo.ts',
     'scripts/preset-vars.mjs',
     'scripts/setup-resources.mjs',
     'scripts/ci-secrets.mjs',
   ];
-  // 匹配 v0.x / 0.x.y 这类旧版本号；排除 IP 地址（127.0.0.1、0.0.0.0）等非版本用途
-  const OLD = /v?0\.\d+\.\d+(?:-[\w.]+)?/g;
+  // 匹配 v0.x / 0.x.y 这类旧版本号。
+  // 前面不能是数字或点——否则 "^10.4.0" 里的 "0.4.0" 会被误判成版本号。
+  const OLD = /(?<![\d.])v?0\.\d+\.\d+(?:-[\w.]+)?/g;
   const IP = /^\d+\.\d+\.\d+\.\d+$/;
   for (const f of files) {
     const src = readFileSync(join(ROOT, f), 'utf8');

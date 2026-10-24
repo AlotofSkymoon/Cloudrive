@@ -1,5 +1,44 @@
 # 变更记录
 
+## 1.1.0 — 2026-10-24
+
+技术栈改造：**JavaScript → TypeScript**，界面层换成 **Vue3 + Tailwind CSS**。功能与用法不变，部署方式不变。
+
+### 为什么改
+
+- **TypeScript**：后端十多个模块互相传配置、文件记录、分享记录，改字段名时很容易漏改一处。现在有 `src/types.ts` 统一定义，后端和前端共用同一套结构，编译期就能发现不一致
+- **Vue3 + Tailwind**：以前界面是一千多行的模板字符串拼 HTML，加功能很费劲，还出过内联脚本转义写坏导致整段 JS 报废的事故。现在拆成组件，样式用 Tailwind 写
+- 参考了 Cloud Mail 的做法：**配置存数据库、在后台改**（上一版已经这样了），这一版让前端也用同样的结构
+
+### 具体变化
+
+**源码**
+- `src/*.js` → `src/*.ts`，新增 `src/types.ts`（Env / FileRow / ShareRow / Cfg / Storage 等）
+- 新增 `src/page.ts`：页面外壳，把前端产物和首屏数据一起吐出去
+- 新增 `src/web-assets.ts`：前端构建产物内联（自动生成）
+- 删除 `src/ui.ts`（原来一千多行的 HTML 模板字符串）
+
+**前端（新增 `web/`）**
+- Vue3 单文件组件：登录页、后台（文件/分享/记录/封禁/设置）、分享页、错误页
+- Tailwind CSS，纸质米白设计系统（`web/src/style.css` 里定义了 `.btn` / `.field` / `.num` 等）
+- 仍是**单 Worker 部署**：构建产物内联进 Worker，不需要静态资源绑定，也不用 Pages
+
+**构建**
+- `npm run build` = `vite build` + `node scripts/embed-assets.mjs`
+- 新增 `npm run typecheck`（tsc）、`npm test` 改用 vitest
+- Actions 部署时会自动跑构建、类型检查和测试
+
+**不变的部分**
+- 路由、API、数据库表结构、环境变量名全部不变
+- 部署步骤不变（Fork → 建资源 → Actions → 绑域名）
+- 配置文件仍存在 D1 里，在设置页改，重新部署不会冲掉
+
+### 测试
+
+52 项全绿。页面外壳新增 6 项断言（boot 数据注入、转义、错误页状态码、图标不含文字）。
+
+---
+
 ## 1.0.0 — 2026-10-23（成品版）
 
 **这是 Filecove 的成品版本**。功能已经完整可用，后续只会做维护和少量改进，不会再有大的结构变动。

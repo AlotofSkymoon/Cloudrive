@@ -1,10 +1,10 @@
 // 路由入口：管理后台 API + 上传 + 分享管理
+import type { Env, ExecutionContext } from './types.js';
 import * as db from './db.js';
 import * as auth from './auth.js';
 import * as limit from './limit.js';
 import { createStorage } from './storage.js';
-import { adminHtml, loginHtml, renderErrorPage } from './ui.js';
-import { faviconResponse } from './logo.js';
+import { spaHtml, errorResponse, faviconResponse } from './page.js';
 import { sharePage, unlock, doDownload, directLink } from './share.js';
 import {
   json,
@@ -24,8 +24,34 @@ import {
 
 const ADMIN_PREFIX = '/api/';
 
+/**
+ * 登录状态探针：无需登录就能看出卡在哪一步。
+ * 既能给 /api/status 用，也给登录页首屏渲染用。
+ */
+async function statusProbe(request: Request, env: Env, storage?: any) {
+  const token = auth.readCookie(request, 'adm');
+  const data = await auth.verifyToken(env, token);
+  const admin = !!(data && data.role === 'admin');
+  return {
+    ok: true as const,
+    hasAdmin: !!(
+      String(env.ADMIN_PASSWORD || '').trim() ||
+      (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))
+    ),
+    hasEnvAdmin: !!String(env.ADMIN_PASSWORD || '').trim(),
+    hasDbAdmin: !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")),
+    // 能区分「密码不对」和「Cookie 没被浏览器存下来」
+    admin,
+    hasCookie: !!token,
+    cookieState: (!token ? 'none' : admin ? 'valid' : 'invalid') as 'none' | 'valid' | 'invalid',
+    https: isHttps(request),
+    driver: storage ? (storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容') : '',
+    bucket: storage?.label || '-',
+  };
+}
+
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -46,7 +72,7 @@ export default {
     try {
       storage = createStorage(env2);
     } catch (e) {
-      return renderErrorPage('存储未配置', String(e.message || e) + '。请绑定 R2 存储桶，或在设置页填写 S3 信息。');
+      return errorResponse('存储未配置', String(e.message || e) + '。请绑定 R2 存储桶，或在设置页填写 S3 信息。');
     }
     const cfg = await db.config(env2);
     const url = new URL(request.url);
@@ -55,11 +81,18 @@ export default {
 
     // ---------- 静态页面 ----------
     if (p === '/' || p === '/index.html') {
-      if (!(await auth.isAdmin(request, env))) return html(loginHtml());
+      if (!(await auth.isAdmin(request, env))) {
+        // 登录页需要一份状态探针，用来提示「没设密码 / HTTP 访问 / Cookie 无效」
+        const st = await statusProbe(request, env);
+        return html(spaHtml({ view: 'login', boot: { status: st } }));
+      }
       return html(
-        adminHtml({
-          driver: storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容',
-          bucket: storage.label || '-',
+        spaHtml({
+          view: 'admin',
+          boot: {
+            driver: storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容',
+            bucket: storage.label || '-',
+          },
         })
       );
     }
@@ -68,7 +101,7 @@ export default {
 
     // ---------- 登录 / 登出 ----------
     if (p === '/api/login' && method === 'POST') {
-      let body = {};
+      let body: any = {};
       try {
         body = await request.json();
       } catch {}
@@ -104,22 +137,7 @@ export default {
 
     // 无需登录的状态探针：帮登录页判断「卡在哪一步」
     if (p === '/api/status' && method === 'GET') {
-      const token = auth.readCookie(request, 'adm');
-      const data = await auth.verifyToken(env, token);
-      const admin = !!(data && data.role === 'admin');
-      return json({
-        ok: true,
-        hasAdmin: !!(String(env.ADMIN_PASSWORD || '').trim() || (await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'"))),
-        hasEnvAdmin: !!String(env.ADMIN_PASSWORD || '').trim(),
-        hasDbAdmin: !!(await db.get(env, "SELECT v FROM settings WHERE k='admin_hash'")),
-        // 登录态相关：能区分「密码不对」和「Cookie 没被接受」
-        admin,
-        hasCookie: !!token,
-        cookieState: !token ? 'none' : admin ? 'valid' : 'invalid',
-        https: isHttps(request),
-        driver: storage.driver === 'r2' ? 'R2 绑定' : 'S3 兼容',
-        bucket: storage.label || '-',
-      });
+      return json(await statusProbe(request, env, storage));
     }
 
     // ---------- 公开路由 ----------
@@ -174,7 +192,7 @@ export default {
       return await adminApi(request, env2, ctx, storage, cfg, p, method, url);
     }
 
-    return renderErrorPage('404', '页面不存在：' + p);
+    return errorResponse('404', '页面不存在：' + p);
   },
 };
 
@@ -193,7 +211,7 @@ function passwordShape(pwd) {
 
 async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
   let m;
-  const body = async () => {
+  const body = async (): Promise<any> => {
     try {
       return await request.json();
     } catch {

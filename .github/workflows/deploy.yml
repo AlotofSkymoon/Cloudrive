@@ -43,6 +43,17 @@ jobs:
 
       - run: npm install
 
+      # 前端（Vue3 + Tailwind）构建并内联成 TS 模块。
+      # wrangler.toml 的入口是 src/index.ts，产物 src/web-assets.ts 由这一步生成。
+      - name: 构建前端（Vue3 + Tailwind）
+        run: npm run build
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 测试
+        run: npm test
+
       # 自动建 D1 数据库（已存在则复用）、自动建 R2 桶，并把 database_id 写回 wrangler.toml
       - name: 准备 Cloudflare 资源（D1 + R2）
         id: resources

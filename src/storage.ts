@@ -1,35 +1,40 @@
 // 存储抽象层：R2 绑定 / 任意 S3 兼容存储（R2 的 S3 API、Backblaze B2、MinIO、腾讯云 COS、阿里云 OSS ...）
 import { presign, signedFetch, uriEncode } from './sigv4.js';
 import { normalizeOrigin } from './util.js';
+import type { Env, Storage, PutOpts, GetResult, PresignGetOpts } from './types.js';
 
 function encodeKeyPath(key) {
   return key.split('/').map((s) => uriEncode(s)).join('/');
 }
 
-class R2Storage {
-  constructor(env) {
+export class R2Storage implements Storage {
+  driver: 'r2' = 'r2';
+  bucket: any;
+  label: string;
+  publicBase: string;
+  constructor(env: Env) {
     this.driver = 'r2';
     this.bucket = env.BUCKET;
     this.label = env.R2_BUCKET_NAME || 'R2 绑定存储桶';
     this.publicBase = normalizeOrigin(env.PUBLIC_BASE_URL);
   }
-  get canPresign() {
+  get canPresign(): boolean {
     return false;
   }
-  publicUrl(key) {
+  publicUrl(key: string): string | null {
     return this.publicBase ? `${this.publicBase}/${encodeKeyPath(key)}` : null;
   }
-  async put(key, body, { contentType } = {}) {
+  async put(key: string, body: any, { contentType }: PutOpts = {}): Promise<void> {
     return this.bucket.put(key, body, {
       httpMetadata: { contentType: contentType || 'application/octet-stream', cacheControl: 'public, max-age=31536000' },
     });
   }
-  async head(key) {
+  async head(key: string): Promise<any> {
     const o = await this.bucket.head(key);
     if (!o) return null;
     return { size: o.size, contentType: o.httpMetadata?.contentType || 'application/octet-stream', etag: o.etag };
   }
-  async get(key, range) {
+  async get(key: string, range?: any): Promise<GetResult | null> {
     const o = range ? await this.bucket.get(key, { range }) : await this.bucket.get(key);
     if (!o) return null;
     return {
@@ -40,11 +45,11 @@ class R2Storage {
       range: o.range,
     };
   }
-  async delete(key) {
+  async delete(key: string): Promise<void> {
     await this.bucket.delete(key);
   }
   // 列举桶内对象，用于「同步已有文件」到数据库
-  async list(maxKeys = 1000) {
+  async list(maxKeys = 1000): Promise<any[]> {
     if (!this.bucket.list) return [];
     const out = [];
     let cursor;
@@ -59,16 +64,23 @@ class R2Storage {
     } while (cursor && out.length < maxKeys && guard < 20);
     return out;
   }
-  async presignPut() {
+  async presignPut(): Promise<null> {
     return null;
   }
-  async presignGet() {
+  async presignGet(): Promise<null> {
     return null;
   }
 }
 
-class S3Storage {
-  constructor(env) {
+export class S3Storage implements Storage {
+  driver: 's3' = 's3';
+  cfg: any;
+  endpoint: string;
+  bucket: string;
+  label: string;
+  pathStyle: boolean;
+  publicBase: string;
+  constructor(env: Env) {
     this.driver = 's3';
     this.cfg = {
       accessKeyId: env.S3_ACCESS_KEY_ID,
@@ -82,23 +94,23 @@ class S3Storage {
     this.pathStyle = String(env.S3_FORCE_PATH_STYLE ?? 'true') !== 'false';
     this.publicBase = normalizeOrigin(env.PUBLIC_BASE_URL);
   }
-  get canPresign() {
+  get canPresign(): boolean {
     return true;
   }
-  baseUrl() {
+  baseUrl(): string {
     const u = new URL(this.endpoint);
     return this.pathStyle ? `${u.origin}/${uriEncode(this.bucket)}` : `${u.protocol}//${this.bucket}.${u.host}`;
   }
-  objectUrl(key, query = {}) {
+  objectUrl(key: string, query: Record<string, unknown> = {}): string {
     const qs = Object.entries(query)
       .map(([k, v]) => `${uriEncode(k, true)}=${uriEncode(String(v), true)}`)
       .join('&');
     return `${this.baseUrl()}/${encodeKeyPath(key)}${qs ? '?' + qs : ''}`;
   }
-  publicUrl(key) {
+  publicUrl(key: string): string | null {
     return this.publicBase ? `${this.publicBase}/${encodeKeyPath(key)}` : null;
   }
-  async put(key, body, { contentType } = {}) {
+  async put(key: string, body: any, { contentType }: PutOpts = {}): Promise<any> {
     // 走 Worker 流式上传（小文件兜底）
     const buf = await new Response(body).arrayBuffer();
     const res = await signedFetch(this.cfg, this.objectUrl(key), {
@@ -109,7 +121,7 @@ class S3Storage {
     if (!res.ok) throw new Error(`S3 PUT 失败: ${res.status} ${await res.text()}`);
     return true;
   }
-  async head(key) {
+  async head(key: string): Promise<any> {
     const res = await signedFetch(this.cfg, this.objectUrl(key), { method: 'HEAD' });
     if (!res.ok) return null;
     return {
@@ -118,8 +130,8 @@ class S3Storage {
       etag: res.headers.get('etag') || '',
     };
   }
-  async get(key, range) {
-    const headers = {};
+  async get(key: string, range?: any): Promise<GetResult | null> {
+    const headers: Record<string, string> = {};
     if (range) headers['range'] = `bytes=${range.offset}-${range.offset + range.length - 1}`;
     const res = await signedFetch(this.cfg, this.objectUrl(key), { method: 'GET', headers });
     if (!res.ok && res.status !== 206) return null;
@@ -132,11 +144,11 @@ class S3Storage {
       headers: res.headers,
     };
   }
-  async delete(key) {
+  async delete(key: string): Promise<void> {
     const res = await signedFetch(this.cfg, this.objectUrl(key), { method: 'DELETE' });
     if (!res.ok && res.status !== 404) throw new Error(`S3 DELETE 失败: ${res.status}`);
   }
-  async presignPut(key, { contentType, expires = 3600 } = {}) {
+  async presignPut(key: string, { contentType, expires = 3600 }: { contentType?: string; expires?: number } = {}): Promise<string> {
     return presign(this.cfg, {
       method: 'PUT',
       url: this.objectUrl(key),
@@ -144,7 +156,7 @@ class S3Storage {
       expires,
     });
   }
-  async presignGet(key, { expires = 900, filename, download = true } = {}) {
+  async presignGet(key: string, { expires = 900, filename, download = true }: PresignGetOpts = {}): Promise<string> {
     const query = {};
     if (filename) {
       const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
@@ -154,7 +166,7 @@ class S3Storage {
     }
     return presign(this.cfg, { method: 'GET', url: this.objectUrl(key), query, expires });
   }
-  async createMultipart(key, contentType) {
+  async createMultipart(key: string, contentType: string): Promise<any> {
     const res = await signedFetch(this.cfg, `${this.objectUrl(key)}?uploads`, {
       method: 'POST',
       headers: { 'content-type': contentType || 'application/octet-stream' },
@@ -165,14 +177,14 @@ class S3Storage {
     if (!m) throw new Error('创建分片上传失败：无法解析 UploadId');
     return m[1];
   }
-  async presignPart(key, uploadId, partNumber, expires = 3600) {
+  async presignPart(key: string, uploadId: string, partNumber: number, expires = 3600): Promise<string> {
     return presign(this.cfg, {
       method: 'PUT',
       url: this.objectUrl(key, { uploadId, partNumber }),
       expires,
     });
   }
-  async completeMultipart(key, uploadId, parts) {
+  async completeMultipart(key: string, uploadId: string, parts: { PartNumber: number; ETag: string }[]): Promise<any> {
     const xml =
       '<CompleteMultipartUpload>' +
       parts
@@ -189,7 +201,7 @@ class S3Storage {
     if (!res.ok) throw new Error(`合并分片失败: ${res.status} ${await res.text()}`);
     return true;
   }
-  async abortMultipart(key, uploadId) {
+  async abortMultipart(key: string, uploadId: string): Promise<any> {
     await signedFetch(this.cfg, this.objectUrl(key, { uploadId }), { method: 'DELETE' });
   }
   // ListObjectsV2：把桶里已有的对象同步进数据库
@@ -229,7 +241,7 @@ function decodeXml(s) {
     .replace(/&amp;/g, '&');
 }
 
-export function createStorage(env) {
+export function createStorage(env: Env): Storage {
   const mode = String(env.STORAGE_DRIVER || 'auto').toLowerCase();
   const hasS3 = !!(env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY);
   if (mode === 'r2' || (mode === 'auto' && !hasS3)) {
