@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, provide, ref } from 'vue';
 import { api, fmtBytes, type FileItem, type Stats } from '../api';
+import BrandLogo from '../components/BrandLogo.vue';
 import FilesPanel from './admin/FilesPanel.vue';
 import DetailPanel from './admin/DetailPanel.vue';
 import SharesPanel from './admin/SharesPanel.vue';
@@ -108,9 +109,7 @@ onMounted(() => {
       class="w-[280px] flex-none bg-surface-container-low border-r border-outline-variant flex flex-col stacked:w-full stacked:border-r-0 stacked:border-b"
     >
       <div class="flex items-center gap-3 px-4 h-16 flex-none">
-        <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary flex-none" fill="currentColor">
-          <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
-        </svg>
+        <BrandLogo :size="26" />
         <span class="text-lg tracking-tight">Cloudrive</span>
       </div>
 

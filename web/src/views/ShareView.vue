@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BrandLogo from '../components/BrandLogo.vue';
 import { onMounted, ref } from 'vue';
 import { api, fileExt, fmtBytes, fmtFull, isImage } from '../api';
 
@@ -93,9 +94,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
   <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe compact:px-3">
     <!-- 品牌 -->
     <div class="flex items-center gap-2 mb-5">
-      <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary" fill="currentColor">
-        <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
-      </svg>
+      <BrandLogo :size="26" />
       <span class="text-lg font-medium tracking-tight">Cloudrive</span>
     </div>
 
