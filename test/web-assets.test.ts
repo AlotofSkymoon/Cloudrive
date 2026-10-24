@@ -19,30 +19,45 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
 const SENTINEL = '__CLOUDRIVE_ASSETS_NOT_BUILT__';
 
-test('仓库里的 web-assets.ts 只能是哨兵占位', () => {
-  // 真产物由 npm run build 生成，不该进仓库——进了就会在下一次
-  // 构建失败时被当成"可用版本"部署出去
-  const src = read('src/web-assets.ts');
-  assert.match(src, new RegExp(`APP_JS\\s*=\\s*'${SENTINEL}'`), 'APP_JS 应该是哨兵值');
-  assert.match(src, new RegExp(`APP_CSS\\s*=\\s*'${SENTINEL}'`), 'APP_CSS 应该是哨兵值');
-  // 占位文件不该混进真实构建内容
-  assert.ok(src.length < 4000, `占位文件不该这么大（${src.length} 字节），是不是把真产物提交进来了`);
+// 注意：CI 的顺序是 build → typecheck → test，跑到 test 时
+// src/web-assets.ts 已经被真产物覆盖了。所以这里两条路都要认：
+// 仓库状态（哨兵）和构建后状态（真产物），分别断言该有的性质。
+const SRC = read('src/web-assets.ts');
+const IS_SENTINEL = SRC.includes(SENTINEL);
+
+test('web-assets.ts 处于合法状态：仓库里是哨兵，构建后是真产物', () => {
+  if (IS_SENTINEL) {
+    // 真产物不该进仓库——进了就会在下一次构建失败时被当成
+    // 「可用版本」部署出去，这正是本次要防的静默失败
+    assert.match(SRC, new RegExp(`APP_JS\\s*=\\s*'${SENTINEL}'`), 'APP_JS 应该是哨兵值');
+    assert.match(SRC, new RegExp(`APP_CSS\\s*=\\s*'${SENTINEL}'`), 'APP_CSS 应该是哨兵值');
+    assert.ok(SRC.length < 4000, `占位文件不该这么大（${SRC.length} 字节），是不是把真产物提交进来了`);
+  } else {
+    // 构建过了：应该是个体积正常的真产物
+    assert.ok(SRC.length > 10000, `构建产物只有 ${SRC.length} 字节，看着不对`);
+    assert.match(SRC, /export const APP_JS/, '缺 APP_JS 导出');
+    assert.match(SRC, /export const APP_CSS/, '缺 APP_CSS 导出');
+  }
 });
 
 test('构建产物不含旧版痕迹', () => {
-  const src = read('src/web-assets.ts');
   // 旧项目名（出现在渲染文本里才算，注释里提到不算）
-  assert.ok(!/>Filecove</.test(src), '产物里还有旧项目名的标题');
-  // 品牌图标不能退化成 M3 通用云朵
-  assert.ok(!/M19\.35 10\.04/.test(src), '产物里还是通用云朵图标');
+  assert.ok(!/>Filecove</.test(SRC), '产物里还有旧项目名的标题');
+  // 品牌图标不能退化成 M3 通用云朵（拖拽区的上传图标除外，它是功能图标）
+  const uploadIcon = /M19\.35 10\.04[^"]*ZM14 13v4h-4v-4H7/;
+  assert.ok(!/M19\.35 10\.04/.test(SRC.replace(uploadIcon, '')), '产物里还是通用云朵图标');
   // 旧断点（v1.6.0 已统一成 compact / stacked / inline）
-  assert.ok(!/max-\[(860|900|1100)px\]/.test(src), '产物里还有旧断点');
+  assert.ok(!/max-\[(860|900|1100)px\]/.test(SRC), '产物里还有旧断点');
+  // 新品牌名要真的在里面（哨兵状态下没有，跳过）
+  if (!IS_SENTINEL) assert.ok(/Cloudrive/.test(SRC), '产物里找不到新品牌名');
 });
 
 test('page.ts 能识别未构建状态并给出说明页', () => {
   const page = read('src/page.ts');
   assert.match(page, /ASSETS_BUILT/, '没有构建状态判断');
-  assert.match(page, /APP_JS !== '__CLOUDRIVE_ASSETS_NOT_BUILT__'/, '哨兵比对逻辑不对');
+  // 必须走 String() 转换：构建后 APP_JS 是具体字面量类型，
+  // 直接和哨兵字面量比会被 tsc 判成无重叠（TS2367）
+  assert.match(page, /String\(APP_JS\) !== /, '哨兵比对要包一层 String()，否则 tsc 会报 TS2367');
   // spaHtml 在没构建时要返回提示页，而不是照常吐空壳
   assert.match(page, /if \(!ASSETS_BUILT\)/, 'spaHtml 没有拦截未构建状态');
   assert.match(page, /function notBuiltHtml/, '缺说明页');

@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { renderLogo } from './logo.js';
 
-export const VERSION = '1.8.3';
+export const VERSION = '1.8.4';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -23,7 +23,12 @@ function esc(s: unknown): string {
 // 才会写入真产物。构建步骤一旦没执行（比如 Actions 里 build 被跳过、
 // 或控制台部署没配 build command），页面会是个空壳并且看不出原因——
 // 之前就是这样静默部署了几个月的旧界面。这里显式兜住，直接说明问题。
-export const ASSETS_BUILT = APP_JS !== '__CLOUDRIVE_ASSETS_NOT_BUILT__';
+// 哨兵值，与 src/web-assets.ts 的占位一致
+const ASSETS_SENTINEL = '__CLOUDRIVE_ASSETS_NOT_BUILT__';
+// 用 String() 包一层：构建后 APP_JS 会被推断成具体的长字面量类型，
+// 直接和哨兵字面量比较，tsc 会判成「两个字面量无重叠」报 TS2367。
+// （CI 里 build 先于 typecheck 跑，所以这条在真产物下必然触发）
+export const ASSETS_BUILT = String(APP_JS) !== ASSETS_SENTINEL;
 
 /** 没构建时的说明页：告诉运维该怎么修，而不是给一个空白/过期的界面 */
 function notBuiltHtml(): string {
