@@ -90,7 +90,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas flex flex-col items-center justify-center px-4 py-8">
+  <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe compact:px-3">
     <!-- 品牌 -->
     <div class="flex items-center gap-2 mb-5">
       <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary" fill="currentColor">
@@ -99,14 +99,14 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
       <span class="text-lg font-medium tracking-tight">Cloudrive</span>
     </div>
 
-    <div class="card w-full max-w-md overflow-hidden">
+    <div class="card w-full max-w-md overflow-hidden compact:max-w-none"
       <!-- 预览 -->
-      <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule">
+      <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule compact:min-h-[140px]"
         <img
           v-if="!disabled && isImage({ name: s.file_name, mime: s.file_mime }) && !prevFailed"
           id="pv-img"
           :src="`/raw/${code}`"
-          class="block w-full max-h-[360px] object-contain cursor-zoom-in"
+          class="block w-full max-h-[360px] object-contain cursor-zoom-in compact:max-h-[240px]"
           loading="lazy"
           alt=""
           @error="prevFail"

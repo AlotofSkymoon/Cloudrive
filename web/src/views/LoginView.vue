@@ -64,7 +64,7 @@ onMounted(probe);
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
+  <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe">
     <!-- 品牌 -->
     <div class="flex flex-col items-center mb-6">
       <svg width="56" height="56" viewBox="0 0 24 24" class="text-primary mb-3" fill="currentColor">
@@ -75,7 +75,7 @@ onMounted(probe);
     </div>
 
     <!-- 登录卡片 -->
-    <div class="card w-full max-w-sm p-8 shadow-e2">
+    <div class="card w-full max-w-sm p-8 shadow-e2 compact:p-6 compact:max-w-none">
       <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
 
       <form @submit.prevent="login">

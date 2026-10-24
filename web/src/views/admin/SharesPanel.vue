@@ -40,7 +40,7 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="flex items-center gap-3 mb-3">
+    <div class="flex items-center gap-3 mb-3 flex-wrap compact:gap-2">
       <span class="text-sm text-muted">{{ shares.length }} 条分享</span>
       <span class="flex-1"></span>
       <button class="btn btn-outlined btn-sm" @click="load">刷新</button>

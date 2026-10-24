@@ -45,7 +45,7 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="flex items-center gap-3 mb-3">
+    <div class="flex items-center gap-3 mb-3 flex-wrap compact:gap-2">
       <span class="text-sm text-muted">{{ bans.length }} 个 IP 处于封禁中</span>
       <span class="flex-1"></span>
       <button class="btn btn-filled btn-sm" @click="addBan">手动封禁</button>
@@ -59,7 +59,8 @@ onMounted(load);
     <div v-else-if="!bans.length" class="card py-12 text-center text-sm text-faint">当前没有封禁记录</div>
 
     <div v-else class="card overflow-hidden">
-      <table>
+      <div class="table-scroll">
+        <table>
         <thead>
           <tr>
             <th class="w-40">IP</th>
@@ -83,7 +84,8 @@ onMounted(load);
             <td class="text-right"><button class="btn-text btn-sm" @click="unban(b.ip)">解封</button></td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <p class="text-xs text-faint mt-4">封禁由限流自动触发，也可以在下载记录里手动封禁。解封立即生效。</p>

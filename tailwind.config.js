@@ -3,6 +3,20 @@ export default {
   content: ['./web/index.html', './web/src/**/*.{vue,ts,js}'],
   theme: {
     extend: {
+      // —— 统一断点（语义命名，全项目共用同一组数值）——
+      // 之前各文件写过 860 / 900 / 1100 三个不同的阈值，导致
+      // 860~900px 区间里侧边栏已折叠、但设置页保存栏还偏移 300px。
+      screens: {
+        // 手机：单列、加大点按区域
+        compact: { max: '599px' },
+        // 侧边栏折叠成顶部导航（含大屏手机横屏、竖屏平板）
+        stacked: { max: '899px' },
+        // 平板及以上
+        tablet: { min: '600px', max: '899px' },
+        // 详情面板内联显示在右侧（低于此宽度改为底部抽屉）
+        inline: { min: '1200px' },
+      },
+
       // —— Material 3 tonal palette（蓝色 key color 生成的色调色板）——
       // 参考 M3 的颜色角色：primary / surface-container / outline / error …
       colors: {

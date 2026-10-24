@@ -40,7 +40,7 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="flex items-center gap-3 mb-3">
+    <div class="flex items-center gap-3 mb-3 flex-wrap compact:gap-2">
       <div class="flex items-center gap-2 h-9 px-3 rounded border border-rule bg-surface flex-1 max-w-[320px]">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-faint flex-none">
           <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z" />
@@ -59,7 +59,8 @@ onMounted(load);
     <div v-else-if="!filtered.length" class="card py-12 text-center text-sm text-faint">暂无记录</div>
 
     <div v-else class="card overflow-hidden">
-      <table>
+      <div class="table-scroll">
+        <table>
         <thead>
           <tr>
             <th class="w-40">时间</th>
@@ -80,7 +81,8 @@ onMounted(load);
             <td class="text-right"><button class="btn-error btn-sm" @click="ban(l.ip)">封禁</button></td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   </section>
 </template>

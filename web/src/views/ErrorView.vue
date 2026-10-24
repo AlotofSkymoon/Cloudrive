@@ -5,7 +5,7 @@ const msg = props.boot?.error?.msg || '页面不存在';
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
+  <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe">
     <div class="flex flex-col items-center">
       <svg width="52" height="52" viewBox="0 0 24 24" class="text-rule mb-4" fill="currentColor">
         <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />

@@ -8,6 +8,8 @@
     margin: 0;
     padding: 0;
     height: 100%;
+    /* 防止窄屏上出现整页横向滚动（表格/长文件名溢出时尤其常见） */
+    overflow-x: hidden;
   }
   body {
     /* M3：页面底色用 surface-container-low，文字用 on-surface */
@@ -88,6 +90,19 @@
   .btn-sm {
     @apply h-8 px-4 text-[13px];
   }
+  /* 手机上加大到 44px，满足 M3 的最小点按区域要求 */
+  @media (max-width: 599px) {
+    .btn {
+      @apply h-11 px-5;
+    }
+    .btn-sm {
+      @apply h-11 px-4 text-sm;
+    }
+    /* 纯文字小按钮（列表操作）也要够大 */
+    .btn-text {
+      @apply min-h-[44px];
+    }
+  }
   .btn-block {
     @apply w-full;
   }
@@ -114,6 +129,17 @@
   }
   .field-label {
     @apply w-[180px] flex-none text-sm text-ink;
+  }
+  @media (max-width: 599px) {
+    .field {
+      @apply flex-col items-stretch gap-1.5 py-4;
+    }
+    .field-label {
+      @apply w-auto;
+    }
+    .input {
+      @apply w-full;
+    }
   }
   .field-desc {
     @apply text-xs text-faint mt-0.5;
@@ -203,6 +229,47 @@
   }
   .alert-error {
     @apply bg-error-container text-[#410002];
+  }
+
+  /* ============ 设备适配 ============ */
+
+  /* 视口高度：手机上 100vh 会被浏览器地址栏顶掉一截，
+     能用 dvh 就用 dvh（iOS 15.4+ / Chrome 108+），老浏览器回落 vh */
+  .h-viewport {
+    height: 100vh;
+    height: 100dvh;
+  }
+  .min-h-viewport {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* 刘海屏 / 底部小黑条安全区 */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* 表格横向滚动容器：窄屏上表格不再把页面撑破 */
+  .table-scroll {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .table-scroll > table {
+    min-width: 560px;
+  }
+
+  /* 底部抽屉（手机上的详情面板 / 上传面板） */
+  .sheet {
+    @apply bg-surface-container-lowest shadow-e3;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* ============ Switch（M3） ============ */

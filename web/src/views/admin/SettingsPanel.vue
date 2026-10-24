@@ -347,7 +347,7 @@ onMounted(async () => {
     </div>
 
     <!-- 保存栏 -->
-    <div class="fixed bottom-0 left-[300px] right-0 bg-surface-container border-t border-outline-variant px-6 py-4 flex items-center gap-3 z-20 max-[860px]:left-0">
+    <div class="fixed bottom-0 left-[300px] right-0 bg-surface-container border-t border-outline-variant px-6 py-4 flex items-center gap-3 z-20 pb-safe stacked:left-0 stacked:px-3">
       <span v-if="dirty" class="w-2 h-2 rounded-full bg-warn flex-none"></span>
       <span class="text-sm text-muted">
         {{ dirty ? '有未保存的改动' : '改完点保存，会存进数据库（优先级高于环境变量，重新部署不会冲掉）' }}

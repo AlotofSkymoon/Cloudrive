@@ -5,6 +5,15 @@ import { api, copyText, fileExt, fileKind, fmtBytes, fmtFull, isImage, type File
 const props = defineProps<{ file: FileItem }>();
 const emit = defineEmits<{ close: []; deleted: [] }>();
 
+/* 是否宽屏——宽屏时详情面板内联在右侧，窄屏时是底部抽屉（要有遮罩） */
+const inlineQuery = typeof window !== 'undefined' && window.matchMedia
+  ? window.matchMedia('(min-width: 1200px)')
+  : null;
+const isInline = ref(inlineQuery ? inlineQuery.matches : true);
+if (inlineQuery && typeof inlineQuery.addEventListener === 'function') {
+  inlineQuery.addEventListener('change', (e) => (isInline.value = e.matches));
+}
+
 const kindText = ref('');
 const busy = ref(false);
 const msg = ref('');
@@ -66,9 +75,26 @@ async function remove() {
 </script>
 
 <template>
-  <aside class="w-[320px] flex-none bg-surface-container-low border-l border-outline-variant flex flex-col overflow-y-auto">
+  <!-- 窄屏（<1200px）：底部抽屉 + 遮罩；宽屏（≥1200px）：右侧固定面板 -->
+  <div
+    v-if="!isInline"
+    class="fixed inset-0 bg-black/40 z-[150] compact:bg-black/50"
+    @click="emit('close')"
+  ></div>
+
+  <aside
+    class="fixed inset-x-0 bottom-0 z-[151] flex flex-col overflow-y-auto max-h-[85vh] rounded-t-xl sheet
+           inline:static inline:z-auto inline:max-h-none inline:rounded-none inline:shadow-none
+           inline:w-[320px] inline:flex-none inline:h-auto
+           inline:bg-surface-container-low inline:border-l inline:border-outline-variant"
+  >
+    <!-- 抽屉把手：只在手机上显示 -->
+    <div class="flex-none flex justify-center pt-2 pb-1 inline:hidden">
+      <span class="w-8 h-1 rounded-full bg-outline-variant"></span>
+    </div>
+
     <!-- 头部 -->
-    <div class="h-16 flex-none flex items-center px-4 gap-2 border-b border-outline-variant">
+    <div class="h-14 flex-none flex items-center px-4 gap-2 border-b border-outline-variant inline:h-16">
       <span class="text-sm font-medium">详细信息</span>
       <span class="flex-1"></span>
       <button class="btn btn-text btn-sm" @click="emit('close')">关闭</button>
@@ -109,7 +135,7 @@ async function remove() {
     </div>
 
     <!-- 操作 -->
-    <div class="px-4 py-4 mt-auto">
+    <div class="px-4 py-4 mt-auto pb-safe">
       <div class="sec-title mb-2">操作</div>
       <div class="flex flex-col gap-1">
         <button class="btn btn-filled btn-block btn-sm" :disabled="busy" @click="shareNow">创建分享并复制</button>
@@ -122,7 +148,7 @@ async function remove() {
     <!-- 灯箱 -->
     <div
       v-if="lightbox"
-      class="fixed inset-0 bg-black/90 flex items-center justify-center z-[200] p-6 cursor-zoom-out"
+      class="fixed inset-0 bg-black/90 flex items-center justify-center z-[200] p-4 cursor-zoom-out"
       @click="lightbox = false"
     >
       <img :src="`/preview/${file.id}`" class="max-w-full max-h-full rounded" alt="" />

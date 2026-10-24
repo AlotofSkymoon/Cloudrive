@@ -366,9 +366,9 @@ onMounted(() => load(true));
 <template>
   <section>
     <!-- 工具栏：搜索 + 视图切换 -->
-    <div class="flex items-center gap-3 mb-3 flex-wrap">
+    <div class="flex items-center gap-3 mb-3 flex-wrap compact:gap-2"
       <div
-        class="flex items-center gap-2 h-9 px-3 rounded border bg-surface flex-1 min-w-[180px] max-w-[320px] transition-colors"
+        class="flex items-center gap-2 h-9 px-3 rounded border bg-surface flex-1 min-w-[180px] max-w-[320px] transition-colors compact:min-w-0 compact:max-w-none compact:w-full compact:basis-full"
         :class="searchFocus ? 'border-primary' : 'border-rule'"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-faint flex-none">
@@ -384,11 +384,11 @@ onMounted(() => load(true));
         />
       </div>
 
-      <span class="flex-1"></span>
+      <span class="flex-1 compact:hidden"></span>
 
       <div class="flex items-center gap-1 bg-soft rounded border border-rule p-0.5">
         <button
-          class="w-8 h-7 flex items-center justify-center rounded"
+          class="w-8 h-7 flex items-center justify-center rounded compact:w-11 compact:h-11"
           :class="view === 'grid' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink'"
           title="网格视图"
           @click="view = 'grid'"
@@ -396,7 +396,7 @@ onMounted(() => load(true));
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z" /></svg>
         </button>
         <button
-          class="w-8 h-7 flex items-center justify-center rounded"
+          class="w-8 h-7 flex items-center justify-center rounded compact:w-11 compact:h-11"
           :class="view === 'list' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink'"
           title="列表视图"
           @click="view = 'list'"
@@ -411,7 +411,7 @@ onMounted(() => load(true));
 
     <!-- 上传区（Cloudreve 式拖拽区） -->
     <div
-      class="rounded-lg border-2 border-dashed px-4 py-6 flex flex-col items-center justify-center gap-1.5 cursor-pointer text-sm text-muted transition-colors mb-3"
+      class="rounded-lg border-2 border-dashed px-4 py-6 flex flex-col items-center justify-center gap-1.5 cursor-pointer text-sm text-muted transition-colors mb-3 compact:py-8 compact:text-center"
       :class="dropOn ? 'border-primary bg-primary-soft text-primary' : 'border-rule hover:border-faint hover:bg-soft'"
       @click="pick"
       @dragenter.prevent="dropOn = true"
@@ -444,8 +444,7 @@ onMounted(() => load(true));
     <!-- 网格视图 -->
     <div
       v-else-if="view === 'grid'"
-      class="grid gap-3"
-      style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))"
+      class="grid gap-3 compact:gap-2 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] compact:grid-cols-[repeat(auto-fill,minmax(104px,1fr))]"
     >
       <div
         v-for="(f, i) in filtered"
@@ -494,7 +493,8 @@ onMounted(() => load(true));
 
     <!-- 列表视图 -->
     <div v-else class="card overflow-hidden">
-      <table>
+      <div class="table-scroll">
+        <table>
         <thead>
           <tr>
             <th class="w-10"></th>
@@ -541,7 +541,8 @@ onMounted(() => load(true));
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <div v-if="offset" class="mt-4 text-center"><button class="btn btn-outlined btn-sm" @click="load(false)">加载更多</button></div>
@@ -549,18 +550,18 @@ onMounted(() => load(true));
     <!-- 上传任务面板（Cloudreve 式：右下角，逐任务显示进度 / 已传 / 速度） -->
     <div
       v-if="showUploader"
-      class="fixed right-6 bottom-6 w-[380px] bg-surface-container-lowest rounded-lg shadow-e3 z-50 overflow-hidden max-[900px]:left-3 max-[900px]:right-3 max-[900px]:w-auto"
+      class="fixed right-6 bottom-6 w-[380px] bg-surface-container-lowest rounded-lg shadow-e3 z-50 overflow-hidden sheet stacked:left-3 stacked:right-3 stacked:bottom-3 stacked:w-auto compact:left-2 compact:right-2 compact:bottom-2"
     >
-      <div class="flex items-center gap-2 px-4 h-14 border-b border-outline-variant">
+      <div class="flex items-center gap-2 px-4 h-14 border-b border-outline-variant compact:h-12 compact:px-3"
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="text-primary"><path d="M12 16l-5-5h3V4h4v7h3l-5 5Zm-7 2h14v2H5v-2Z" /></svg>
         <span class="text-sm font-medium">上传任务</span>
         <span class="text-xs text-muted font-mono">{{ uploading.length }}</span>
         <span class="flex-1"></span>
-        <button class="btn btn-text !px-2 btn-sm" @click="clearDone">清除已完成</button>
+        <button class="btn btn-text !px-2 btn-sm" @click="clearDone">清除</button>
         <button class="text-faint text-lg leading-none hover:text-ink px-1" @click="showUploader = false">×</button>
       </div>
 
-      <div class="max-h-[340px] overflow-y-auto">
+      <div class="max-h-[340px] overflow-y-auto compact:max-h-[45vh]"
         <div
           v-for="t in uploading"
           :key="t.id"
@@ -621,8 +622,8 @@ onMounted(() => load(true));
     </div>
 
     <!-- 分享弹窗 -->
-    <div v-if="shareIdx !== null" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" @click.self="shareIdx = null">
-      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-e3">
+    <div v-if="shareIdx !== null" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60] stacked:items-end stacked:p-0" @click.self="shareIdx = null">
+      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-e3 max-h-[90vh] overflow-y-auto sheet stacked:rounded-b-none stacked:max-w-none">
         <div class="px-5 h-14 flex items-center gap-2 border-b border-rule">
           <h3 class="text-base font-medium m-0">{{ shareLink ? '分享已创建' : '创建分享' }}</h3>
           <button class="ml-auto text-faint text-xl leading-none hover:text-ink" @click="shareIdx = null">×</button>
