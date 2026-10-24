@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { renderLogo } from './logo.js';
 
-export const VERSION = '1.8.1';
+export const VERSION = '1.8.2';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 

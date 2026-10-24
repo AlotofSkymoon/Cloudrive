@@ -103,7 +103,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-viewport overflow-hidden bg-canvas stacked:flex-col stacked:h-auto stacked:overflow-visible"
+  <div class="flex h-viewport overflow-hidden bg-canvas stacked:flex-col stacked:h-auto stacked:overflow-visible">
     <!-- 左侧导航抽屉 -->
     <aside
       class="w-[280px] flex-none bg-surface-container-low border-r border-outline-variant flex flex-col stacked:w-full stacked:border-r-0 stacked:border-b"
@@ -113,7 +113,7 @@ onMounted(() => {
         <span class="text-lg tracking-tight">Cloudrive</span>
       </div>
 
-      <nav class="flex-1 overflow-y-auto pb-2 stacked:flex stacked:flex-none stacked:gap-1 stacked:overflow-x-auto stacked:overflow-y-hidden stacked:px-2 stacked:py-1"
+      <nav class="flex-1 overflow-y-auto pb-2 stacked:flex stacked:flex-none stacked:gap-1 stacked:overflow-x-auto stacked:overflow-y-hidden stacked:px-2 stacked:py-1">
         <div class="px-4 pt-2 pb-1 text-xs font-medium tracking-wide text-faint">我的文件</div>
         <div class="px-2">
           <div
@@ -173,7 +173,7 @@ onMounted(() => {
       </nav>
 
       <!-- 存储用量 -->
-      <div class="flex-none border-t border-outline-variant px-4 py-4 compact:hidden stacked:flex stacked:flex-row stacked:items-center stacked:gap-3 stacked:py-2"
+      <div class="flex-none border-t border-outline-variant px-4 py-4 compact:hidden stacked:flex stacked:flex-row stacked:items-center stacked:gap-3 stacked:py-2">
         <div class="text-xs text-muted mb-2">存储空间</div>
         <div class="h-1.5 bg-outline-variant rounded-full overflow-hidden mb-2">
           <i class="bar-fill block h-full bg-primary rounded-full" :style="{ width: usedPct + '%' }"></i>
@@ -188,8 +188,8 @@ onMounted(() => {
     </aside>
 
     <!-- 中间主区 -->
-    <main class="flex-1 min-w-0 flex flex-col overflow-hidden stacked:overflow-visible"
-      <header class="h-16 flex-none bg-surface-container border-b border-outline-variant flex items-center px-6 gap-3 compact:px-3 compact:gap-1 pt-safe"
+    <main class="flex-1 min-w-0 flex flex-col overflow-hidden stacked:overflow-visible">
+      <header class="h-16 flex-none bg-surface-container border-b border-outline-variant flex items-center px-6 gap-3 compact:px-3 compact:gap-1 pt-safe">
         <nav class="flex items-center text-sm text-muted min-w-0">
           <span class="cursor-pointer hover:text-ink" @click="active = 'all'">我的文件</span>
           <template v-if="active !== 'all'">
@@ -207,7 +207,7 @@ onMounted(() => {
         </button>
       </header>
 
-      <div class="flex-1 overflow-y-auto px-6 py-5 stacked:px-3 stacked:overflow-visible pb-safe"
+      <div class="flex-1 overflow-y-auto px-6 py-5 stacked:px-3 stacked:overflow-visible pb-safe">
         <!-- 切换视图时新内容从上方顺滑落下（:key 变化才触发过渡） -->
         <Transition name="view" mode="out-in">
           <div :key="active">

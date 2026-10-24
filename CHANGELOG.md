@@ -1,5 +1,57 @@
 # 变更记录
 
+## 1.8.2 — 2026-10-24
+
+修复构建失败：`vite build` 报 `Duplicate attribute`，前端根本编不出来。
+
+### 根因
+
+v1.6.0 做设备适配时，我用字符串替换改 `AdminView.vue` / `ShareView.vue` / `FilesPanel.vue` 里的多行起始标签（改断点类名），**替换时把结尾的 `>` 弄丢了**，一共 11 处：
+
+```html
+<nav class="..."        ← 少了 >
+  <div class="...">     ← 浏览器/Vue 把它当成 nav 的属性
+```
+
+Vue 编译器把下一行的 `<div class=` 当成上一个标签的同名属性，于是报 `Duplicate attribute`。
+
+**同类问题还有一处更隐蔽的**：v1.8.0 插 `<Transition name="sheet">` 时，锚点行 `v-if="showUploader"` 其实是 `<div` 多行写法的**第二行**，结果 Transition 被塞进了 `<div>` 的属性列表中间：
+
+```html
+<div
+<Transition name="sheet">   ← 插错位置
+  v-if="showUploader"
+  class="..."
+>
+```
+
+### 为什么之前没发现
+
+本地装不上依赖（npm 反复超时），跑不了 `vite build`，只做了静态校验——而我的静态检查只查了**标签配对数量**，没查「起始标签的属性列表是否真的闭合了」。数量是对的，语法是坏的。
+
+### 修复
+
+- 补齐 11 处丢失的 `>`
+- 把上传面板的 `<Transition>` 挪到 `<div>` 外面
+- `theme('colors.primary')` 改成 `theme('colors.primary.DEFAULT')`——`primary` 是带 `DEFAULT` 的对象，之前会触发 Tailwind 的 `contains an invalid theme value` 警告
+
+### 新增测试
+
+`test/vue-template.test.ts`，4 组静态检查，专门盯这类改坏：
+
+- 起始标签的属性列表必须以 `>` 或 `/>` 收尾（多行写法除外）
+- 模板标签开闭平衡（贪婪匹配到最后一个 `</template>`，去掉注释与字符串字面量）
+- `<Transition>` 后面不能直接跟裸属性（防「插进别的标签里面」）
+- 不允许连续两个未闭合的起始标签（直接复现本次报错）
+
+以后本地跑不了构建时，这 4 组能在提交前拦住同类问题。
+
+### 升级
+
+重新部署即可。
+
+---
+
 ## 1.8.1 — 2026-10-24
 
 图标配色的命名改成产品化的叫法：**黑色 → 零白**，**白色 → 原白**。

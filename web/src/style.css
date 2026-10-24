@@ -151,7 +151,7 @@
     border: 1px solid theme('colors.outline');
   }
   .input:focus {
-    border: 2px solid theme('colors.primary');
+    border: 2px solid theme('colors.primary.DEFAULT');
     padding: 9px 15px; /* 补偿边框加粗，避免文字跳动 */
   }
   .unit {

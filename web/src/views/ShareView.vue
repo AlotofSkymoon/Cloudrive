@@ -98,9 +98,9 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
       <span class="text-lg font-medium tracking-tight">Cloudrive</span>
     </div>
 
-    <div class="card w-full max-w-md overflow-hidden compact:max-w-none"
+    <div class="card w-full max-w-md overflow-hidden compact:max-w-none">
       <!-- 预览 -->
-      <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule compact:min-h-[140px]"
+      <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule compact:min-h-[140px]">
         <img
           v-if="!disabled && isImage({ name: s.file_name, mime: s.file_mime }) && !prevFailed"
           id="pv-img"
