@@ -131,7 +131,7 @@ onMounted(async () => {
 <template>
   <section class="max-w-[720px]">
     <div v-if="err" class="alert alert-error flex items-center gap-3">
-      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
+      {{ err }}<button class="btn btn-outlined btn-sm ml-auto" @click="load">重试</button>
     </div>
     <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
@@ -148,7 +148,7 @@ onMounted(async () => {
               <div class="field-desc">对象存储的公开访问域名</div>
             </label>
             <input v-model="cfg.publicBaseUrl" class="input" placeholder="cdn.example.com" @input="mark" />
-            <button class="btn btn-plain btn-sm" @click="checkBase">检测</button>
+            <button class="btn btn-outlined btn-sm" @click="checkBase">检测</button>
           </div>
           <div v-if="diag" class="pb-3">
             <div v-if="diag.reason === 'no_public_base'" class="alert alert-warn">
@@ -347,14 +347,14 @@ onMounted(async () => {
     </div>
 
     <!-- 保存栏 -->
-    <div class="fixed bottom-0 left-60 right-0 bg-surface border-t border-rule px-5 py-3 flex items-center gap-3 z-20 max-[860px]:left-0">
+    <div class="fixed bottom-0 left-[300px] right-0 bg-surface-container border-t border-outline-variant px-6 py-4 flex items-center gap-3 z-20 max-[860px]:left-0">
       <span v-if="dirty" class="w-2 h-2 rounded-full bg-warn flex-none"></span>
       <span class="text-sm text-muted">
         {{ dirty ? '有未保存的改动' : '改完点保存，会存进数据库（优先级高于环境变量，重新部署不会冲掉）' }}
       </span>
       <span class="flex-1"></span>
-      <button class="btn btn-plain" @click="load">放弃</button>
-      <button class="btn btn-primary" @click="save">保存</button>
+      <button class="btn btn-outlined" @click="load">放弃</button>
+      <button class="btn btn-filled" @click="save">保存</button>
     </div>
   </section>
 </template>

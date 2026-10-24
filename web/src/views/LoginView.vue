@@ -75,7 +75,7 @@ onMounted(probe);
     </div>
 
     <!-- 登录卡片 -->
-    <div class="card w-full max-w-sm p-6" style="box-shadow: 0 2px 8px rgba(0,0,0,.08)">
+    <div class="card w-full max-w-sm p-8 shadow-e2">
       <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
 
       <form @submit.prevent="login">
@@ -91,7 +91,7 @@ onMounted(probe);
           @keyup.enter="login"
         />
 
-        <button type="submit" :disabled="noPassword || busy" class="btn btn-primary w-full mt-5">
+        <button type="submit" :disabled="noPassword || busy" class="btn btn-filled w-full mt-5">
           {{ busy ? '验证中…' : '登 录' }}
         </button>
       </form>

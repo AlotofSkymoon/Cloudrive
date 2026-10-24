@@ -43,11 +43,11 @@ onMounted(load);
     <div class="flex items-center gap-3 mb-3">
       <span class="text-sm text-muted">{{ shares.length }} 条分享</span>
       <span class="flex-1"></span>
-      <button class="btn btn-plain btn-sm" @click="load">刷新</button>
+      <button class="btn btn-outlined btn-sm" @click="load">刷新</button>
     </div>
 
     <div v-if="err" class="alert alert-error flex items-center gap-3">
-      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
+      {{ err }}<button class="btn btn-outlined btn-sm ml-auto" @click="load">重试</button>
     </div>
     <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
@@ -74,7 +74,7 @@ onMounted(load);
         <div class="flex items-center gap-0.5">
           <button class="btn-text btn-sm" @click="copyText(s.url)">复制链接</button>
           <button class="btn-text btn-sm" @click="copyDirect(s.code)">直链</button>
-          <button class="btn-danger btn-sm" @click="del(s.code)">取消</button>
+          <button class="btn-error btn-sm" @click="del(s.code)">取消</button>
         </div>
       </div>
     </div>

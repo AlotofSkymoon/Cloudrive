@@ -52,7 +52,7 @@ onMounted(load);
     </div>
 
     <div v-if="err" class="alert alert-error flex items-center gap-3">
-      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
+      {{ err }}<button class="btn btn-outlined btn-sm ml-auto" @click="load">重试</button>
     </div>
     <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
@@ -77,7 +77,7 @@ onMounted(load);
             <td><span class="mono">{{ l.country || '—' }}</span></td>
             <td class="truncate max-w-[240px]">{{ l.action === 'download' ? '下载' : l.action || '访问' }} · {{ l.name || l.code || '' }}</td>
             <td class="text-right"><span class="num">{{ l.bytes ? fmtBytes(l.bytes) : '—' }}</span></td>
-            <td class="text-right"><button class="btn-danger btn-sm" @click="ban(l.ip)">封禁</button></td>
+            <td class="text-right"><button class="btn-error btn-sm" @click="ban(l.ip)">封禁</button></td>
           </tr>
         </tbody>
       </table>

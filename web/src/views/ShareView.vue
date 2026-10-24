@@ -152,11 +152,11 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
           <div id="cf-ts"></div>
         </div>
 
-        <button v-if="!disabled" class="btn btn-primary w-full" :disabled="busy" @click="start">
+        <button v-if="!disabled" class="btn btn-filled w-full" :disabled="busy" @click="start">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5Zm-7 2h14v2H5v-2Z" /></svg>
           {{ busy ? '处理中…' : '下 载' }}
         </button>
-        <button v-else class="btn btn-plain w-full" disabled>
+        <button v-else class="btn btn-outlined w-full" disabled>
           {{ s.banned ? 'IP 已被限制' : s.error || '不可用' }}
         </button>
       </div>

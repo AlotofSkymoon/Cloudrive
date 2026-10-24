@@ -148,6 +148,23 @@ export function isImage(f: { name?: string; mime?: string | null }): boolean {
   return /^image\//i.test(f.mime || '') || IMG_EXT.test(f.name || '');
 }
 
+/* 文件归类：给左侧「图片 / 视频 / 音乐 / 文档」用 */
+const VIDEO_EXT = /\.(mp4|webm|mov|mkv|avi|flv|m4v|wmv|ts|mpg|mpeg|3gp)$/i;
+const AUDIO_EXT = /\.(mp3|flac|wav|ogg|m4a|aac|opus|wma|ape)$/i;
+const DOC_EXT = /\.(pdf|docx?|xlsx?|pptx?|txt|md|csv|epub|rtf|odt|ods|odp|json|ya?ml|zip|rar|7z|tar|gz)$/i;
+
+export type FileKind = 'image' | 'video' | 'audio' | 'doc' | 'other';
+
+export function fileKind(f: { name?: string; mime?: string | null }): FileKind {
+  const mime = String(f?.mime || '').toLowerCase();
+  const name = String(f?.name || '');
+  if (isImage(f)) return 'image';
+  if (mime.startsWith('video/') || VIDEO_EXT.test(name)) return 'video';
+  if (mime.startsWith('audio/') || AUDIO_EXT.test(name)) return 'audio';
+  if (DOC_EXT.test(name) || /^(application\/(pdf|msword|vnd)|text\/)/i.test(mime)) return 'doc';
+  return 'other';
+}
+
 export async function copyText(t: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     try {

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue';
-import { api, copyText, fileExt, fmtBytes, fmtShort, isImage, type FileItem } from '../../api';
+import { computed, inject, onMounted, ref } from 'vue';
+import { api, copyText, fileExt, fileKind, fmtBytes, fmtShort, isImage, type FileItem } from '../../api';
 
-const emit = defineEmits<{ changed: [] }>();
+const props = defineProps<{ filter?: string }>();
+const emit = defineEmits<{ changed: []; select: [file: FileItem | null]; deleted: [] }>();
 
 const files = ref<FileItem[]>([]);
+const selectId = ref('');
 const q = ref('');
 const loading = ref(true);
 const loadErr = ref('');
@@ -60,6 +62,17 @@ async function syncBucket() {
   }
 }
 
+// 左侧「图片 / 视频 / 音乐 / 文档」在这里生效
+const filtered = computed(() => {
+  if (!props.filter || props.filter === 'all') return files.value;
+  return files.value.filter((f) => fileKind(f) === props.filter);
+});
+
+function selectFile(f: FileItem) {
+  selectId.value = f.id;
+  emit('select', f);
+}
+
 const selectedCount = () => Object.values(sel.value).filter(Boolean).length;
 
 async function delFile(id: string) {
@@ -68,16 +81,19 @@ async function delFile(id: string) {
   if (d) {
     load(true);
     emit('changed');
+    emit('deleted');
   }
 }
 async function delSelected() {
-  const ids = files.value.filter((_, i) => sel.value[i]).map((f) => f.id);
+  // sel 的索引基于 filtered（当前显示的那一份），不是 files
+  const ids = filtered.value.filter((_, i) => sel.value[i]).map((f) => f.id);
   if (!ids.length) return;
   if (!confirm(`删除所选 ${ids.length} 个文件？`)) return;
   const d = await api.post('/api/files/delete', { ids });
   if (d) {
     load(true);
     emit('changed');
+    emit('deleted');
   }
 }
 async function copyLink(f: FileItem) {
@@ -198,7 +214,7 @@ function openShare(i: number) {
 async function createShare() {
   const i = shareIdx.value;
   if (i == null) return;
-  const f = files.value[i];
+  const f = filtered.value[i];
   const d = await api.post<{ url: string; code: string }>('/api/shares', {
     file_id: f.id,
     password: sharePwd.value,
@@ -274,8 +290,8 @@ onMounted(() => load(true));
         </button>
       </div>
 
-      <button class="btn btn-plain btn-sm" @click="syncBucket">同步桶内</button>
-      <button v-if="selectedCount()" class="btn btn-danger btn-sm" @click="delSelected">删除 ({{ selectedCount() }})</button>
+      <button class="btn btn-outlined btn-sm" @click="syncBucket">同步桶内</button>
+      <button v-if="selectedCount()" class="btn btn-error btn-sm" @click="delSelected">删除 ({{ selectedCount() }})</button>
     </div>
 
     <!-- 上传区（Cloudreve 式拖拽区） -->
@@ -298,16 +314,16 @@ onMounted(() => load(true));
 
     <div v-if="loadErr" class="alert alert-error mb-3 flex items-center gap-3">
       {{ loadErr }}
-      <button class="btn btn-plain btn-sm ml-auto" @click="load(true)">重试</button>
+      <button class="btn btn-outlined btn-sm ml-auto" @click="load(true)">重试</button>
     </div>
     <div v-else-if="loading && !files.length" class="py-12 text-center text-faint text-sm">加载中…</div>
 
     <!-- 空状态 -->
-    <div v-else-if="!files.length" class="py-12 text-center">
+    <div v-else-if="!filtered.length" class="py-12 text-center">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="text-rule mx-auto mb-2">
         <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2Z" />
       </svg>
-      <div class="text-sm text-faint">还没有文件，把文件拖到上面即可上传</div>
+      <div class="text-sm text-faint">{{ files.length ? '这个分类下没有文件' : '还没有文件，把文件拖到上面即可上传' }}</div>
     </div>
 
     <!-- 网格视图 -->
@@ -317,10 +333,11 @@ onMounted(() => load(true));
       style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))"
     >
       <div
-        v-for="(f, i) in files"
+        v-for="(f, i) in filtered"
         :key="f.id"
-        class="card p-2 cursor-pointer relative group transition-shadow hover:shadow-raised"
-        @click.self="sel[i] = !sel[i]"
+        class="card p-2 cursor-pointer relative group transition-shadow hover:shadow-e2"
+        :class="selectId === f.id ? 'ring-2 ring-primary' : ''"
+        @click.self="selectFile(f)"
       >
         <!-- 多选 -->
         <span
@@ -355,7 +372,7 @@ onMounted(() => load(true));
         <div class="flex items-center gap-1 px-1 pb-1">
           <button class="btn-text !px-1.5 !h-7 !text-xs flex-1" @click.stop="openShare(i)">分享</button>
           <button class="btn-text !px-1.5 !h-7 !text-xs flex-1" @click.stop="copyLink(f)">直链</button>
-          <button class="btn-danger !px-1.5 !h-7 !text-xs flex-1" @click.stop="delFile(f.id)">删除</button>
+          <button class="btn-error !px-1.5 !h-7 !text-xs flex-1" @click.stop="delFile(f.id)">删除</button>
         </div>
       </div>
     </div>
@@ -374,7 +391,7 @@ onMounted(() => load(true));
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(f, i) in files" :key="f.id">
+          <tr v-for="(f, i) in filtered" :key="f.id" :class="selectId === f.id ? 'bg-primary-soft' : ''" @click="selectFile(f)">
             <td>
               <span
                 class="w-4 h-4 border-2 border-faint rounded inline-flex items-center justify-center align-middle cursor-pointer"
@@ -404,7 +421,7 @@ onMounted(() => load(true));
               <div class="flex items-center justify-end gap-0.5">
                 <button class="btn-text !px-2 !h-7 !text-xs" @click="openShare(i)">分享</button>
                 <button class="btn-text !px-2 !h-7 !text-xs" @click="copyLink(f)">直链</button>
-                <button class="btn-danger !px-2 !h-7 !text-xs" @click="delFile(f.id)">删除</button>
+                <button class="btn-error !px-2 !h-7 !text-xs" @click="delFile(f.id)">删除</button>
               </div>
             </td>
           </tr>
@@ -412,10 +429,10 @@ onMounted(() => load(true));
       </table>
     </div>
 
-    <div v-if="offset" class="mt-4 text-center"><button class="btn btn-plain btn-sm" @click="load(false)">加载更多</button></div>
+    <div v-if="offset" class="mt-4 text-center"><button class="btn btn-outlined btn-sm" @click="load(false)">加载更多</button></div>
 
     <!-- 上传队列 -->
-    <div v-if="showUploader" class="fixed right-5 bottom-5 w-80 bg-surface rounded-lg border border-rule shadow-dialog z-50 max-[860px]:left-3 max-[860px]:right-3 max-[860px]:w-auto">
+    <div v-if="showUploader" class="fixed right-5 bottom-5 w-80 bg-surface rounded-lg border border-rule shadow-e3 z-50 max-[860px]:left-3 max-[860px]:right-3 max-[860px]:w-auto">
       <div class="flex items-center gap-2 px-4 h-11 border-b border-rule text-sm font-medium">
         <span>上传队列</span>
         <span class="text-xs text-faint font-mono">{{ uploading.length }}</span>
@@ -423,7 +440,7 @@ onMounted(() => load(true));
         <button class="text-faint text-xs hover:text-ink" @click="showUploader = false">收起</button>
       </div>
       <div class="max-h-64 overflow-y-auto">
-        <div v-for="(t, i) in uploading" :key="i" class="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f0f0] last:border-b-0">
+        <div v-for="(t, i) in uploading" :key="i" class="flex items-center gap-3 px-4 py-2.5 border-b border-outline-variant/40 last:border-b-0">
           <span class="ext">{{ fileExt(t.name) }}</span>
           <div class="flex-1 min-w-0">
             <div class="text-[13px] truncate">{{ t.name }}</div>
@@ -438,7 +455,7 @@ onMounted(() => load(true));
 
     <!-- 分享弹窗 -->
     <div v-if="shareIdx !== null" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" @click.self="shareIdx = null">
-      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-dialog">
+      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-e3">
         <div class="px-5 h-14 flex items-center gap-2 border-b border-rule">
           <h3 class="text-base font-medium m-0">{{ shareLink ? '分享已创建' : '创建分享' }}</h3>
           <button class="ml-auto text-faint text-xl leading-none hover:text-ink" @click="shareIdx = null">×</button>
@@ -447,7 +464,7 @@ onMounted(() => load(true));
         <div v-if="!shareLink" class="p-5">
           <div class="flex items-center gap-3 mb-3">
             <label class="w-16 flex-none text-sm text-muted">文件</label>
-            <div class="flex-1 min-w-0 truncate text-sm">{{ files[shareIdx].name }}</div>
+            <div class="flex-1 min-w-0 truncate text-sm">{{ filtered[shareIdx].name }}</div>
           </div>
           <div class="flex items-center gap-3 mb-3">
             <label class="w-16 flex-none text-sm text-muted">有效期</label>
@@ -484,8 +501,8 @@ onMounted(() => load(true));
         </div>
 
         <div class="px-5 h-14 border-t border-rule flex items-center justify-end gap-2 bg-soft rounded-b-lg">
-          <button class="btn btn-plain" @click="shareIdx = null">{{ shareLink ? '关闭' : '取消' }}</button>
-          <button v-if="!shareLink" class="btn btn-primary" @click="createShare">创建</button>
+          <button class="btn btn-outlined" @click="shareIdx = null">{{ shareLink ? '关闭' : '取消' }}</button>
+          <button v-if="!shareLink" class="btn btn-filled" @click="createShare">创建</button>
         </div>
       </div>
     </div>

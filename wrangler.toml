@@ -1,4 +1,9 @@
 name = "filecove"
+
+# 构建前端（Vue3 + Tailwind）并把产物内联成 src/web-assets.ts。
+# Actions 部署和控制台「连接 GitHub」部署都会执行它。
+[build]
+command = "npm install && npm run build"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 

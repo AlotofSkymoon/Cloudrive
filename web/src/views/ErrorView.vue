@@ -16,7 +16,7 @@ const msg = props.boot?.error?.msg || '页面不存在';
         <template v-if="code === '404'">这个地址不存在。如果是别人给你的链接，可能已经失效或被取消。</template>
         <template v-else>分享已过期或被分享者取消。如果你需要这个文件，请联系分享者重新生成链接。</template>
       </p>
-      <a href="/" class="btn btn-primary no-underline">返回首页</a>
+      <a href="/" class="btn btn-filled no-underline">返回首页</a>
     </div>
   </div>
 </template>

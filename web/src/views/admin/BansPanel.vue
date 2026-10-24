@@ -48,11 +48,11 @@ onMounted(load);
     <div class="flex items-center gap-3 mb-3">
       <span class="text-sm text-muted">{{ bans.length }} 个 IP 处于封禁中</span>
       <span class="flex-1"></span>
-      <button class="btn btn-primary btn-sm" @click="addBan">手动封禁</button>
+      <button class="btn btn-filled btn-sm" @click="addBan">手动封禁</button>
     </div>
 
     <div v-if="err" class="alert alert-error flex items-center gap-3">
-      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
+      {{ err }}<button class="btn btn-outlined btn-sm ml-auto" @click="load">重试</button>
     </div>
     <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
@@ -75,7 +75,7 @@ onMounted(load);
             <td>
               <span
                 class="text-[10px] rounded px-1.5 py-0.5"
-                :class="sourceOf(b) === '手动' ? 'bg-primary-soft text-primary' : 'bg-[#f0f0f0] text-muted'"
+                :class="sourceOf(b) === '手动' ? 'bg-primary-soft text-primary' : 'bg-surface-container-high text-muted'"
               >{{ sourceOf(b) }}</span>
             </td>
             <td class="text-muted">{{ b.reason || '—' }}</td>

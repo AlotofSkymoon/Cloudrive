@@ -10,6 +10,7 @@
     height: 100%;
   }
   body {
+    /* M3：页面底色用 surface-container-low，文字用 on-surface */
     @apply bg-canvas text-ink;
     font-family: theme('fontFamily.sans');
     font-size: 14px;
@@ -17,102 +18,123 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: #bbdefb;
+    background: #c8e7ff;
+    color: #001f2c;
   }
-  /* 滚动条也做成轻度 Material 感 */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #cfcfcf;
+    background: #c4c8cc;
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #b0b0b0;
+    background: #74787d;
   }
 }
 
 @layer components {
-  /* ---------- 按钮：Material raised / text / outlined ---------- */
+  /* ============ 通用按钮骨架 ============
+     M3 按钮：高 40dp、圆角 full、label-large(14/500) */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded text-sm font-medium whitespace-nowrap transition-shadow;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    @apply inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full text-sm font-medium whitespace-nowrap transition-all;
   }
-  .btn:active {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  .btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
   }
-  /* 主按钮：实心蓝 */
-  .btn-primary {
-    @apply bg-primary text-white;
+
+  /* Filled：主色实心（最高优先级操作） */
+  .btn-filled {
+    @apply bg-primary text-white shadow-e0;
   }
-  .btn-primary:hover {
-    @apply bg-primary-dark;
+  .btn-filled:hover:not(:disabled) {
+    @apply shadow-e1;
+    background: #005b8f;
   }
-  /* 次按钮：白底描边 */
-  .btn-plain {
-    @apply bg-surface border border-rule text-ink/85;
+
+  /* Tonal：secondary-container 填充（次高优先级） */
+  .btn-tonal {
+    @apply bg-secondary-container text-[#0C1C22] shadow-e0;
   }
-  .btn-plain:hover {
-    @apply bg-[#f2f2f2];
+  .btn-tonal:hover:not(:disabled) {
+    @apply shadow-e1;
   }
-  /* 文字按钮 */
+
+  /* Outlined：描边 */
+  .btn-outlined {
+    @apply bg-transparent text-primary border border-outline shadow-none;
+  }
+  .btn-outlined:hover:not(:disabled) {
+    background: rgba(0, 99, 155, 0.08);
+  }
+
+  /* Text：纯文字 */
   .btn-text {
     @apply bg-transparent text-primary shadow-none px-3;
   }
-  .btn-text:hover {
-    @apply bg-primary-soft;
+  .btn-text:hover:not(:disabled) {
+    background: rgba(0, 99, 155, 0.08);
   }
-  .btn-danger {
-    @apply bg-transparent text-danger shadow-none px-3;
+
+  /* Text + error 色（删除类操作） */
+  .btn-error {
+    @apply bg-transparent text-error shadow-none px-3 font-medium;
   }
-  .btn-danger:hover {
-    @apply bg-dangerSoft;
+  .btn-error:hover:not(:disabled) {
+    background: rgba(186, 26, 26, 0.08);
   }
-  /* 兼容旧写法 */
-  .btn-solid {
-    @apply bg-primary text-white shadow;
-  }
-  .btn-solid:hover {
-    @apply bg-primary-dark;
-  }
+
   .btn-sm {
-    @apply h-8 px-3 text-[13px];
+    @apply h-8 px-4 text-[13px];
   }
-  .btn:disabled {
-    @apply opacity-50 cursor-not-allowed;
+  .btn-block {
+    @apply w-full;
   }
 
-  /* ---------- 卡片 ---------- */
+  /* Extended FAB（侧栏「+ 新建」）：M3 的 FAB 用 primary-container、
+     圆角 16dp，不是全圆角 */
+  .fab-extended {
+    @apply inline-flex items-center justify-center gap-2 h-14 px-4 rounded-lg bg-primary-container text-[#001F2C] text-sm font-medium transition-shadow shadow-e1;
+  }
+  .fab-extended:hover {
+    @apply shadow-e2;
+  }
+
+  /* ============ 卡片 ============
+     M3 elevated card：surface-container-low + elevation 1 + 12dp 圆角 */
   .card {
-    @apply bg-surface rounded border border-rule;
-    box-shadow: theme('boxShadow.card');
+    @apply bg-surface-container-low rounded border-none;
+    box-shadow: theme('boxShadow.e1');
   }
 
-  /* ---------- 表单 ---------- */
+  /* ============ 表单 ============ */
   .field {
-    @apply flex items-center gap-4 py-3 border-b border-rule;
+    @apply flex items-center gap-4 py-3 border-b border-outline-variant;
   }
   .field-label {
-    @apply w-[180px] flex-none text-sm text-ink/85;
+    @apply w-[180px] flex-none text-sm text-ink;
   }
   .field-desc {
     @apply text-xs text-faint mt-0.5;
   }
+
+  /* M3 outlined text field：4dp 圆角，聚焦时 2dp primary 边框 */
   .input {
-    @apply flex-1 min-w-0 border border-rule rounded bg-surface px-3 py-2 text-sm outline-none transition-colors;
+    @apply flex-1 min-w-0 rounded-xs bg-transparent px-4 py-2.5 text-sm outline-none transition-all;
+    border: 1px solid theme('colors.outline');
   }
   .input:focus {
-    @apply border-primary;
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.14);
+    border: 2px solid theme('colors.primary');
+    padding: 9px 15px; /* 补偿边框加粗，避免文字跳动 */
   }
   .unit {
     @apply text-xs text-faint whitespace-nowrap;
   }
 
-  /* ---------- 文本 ---------- */
+  /* ============ 文本 ============ */
   .num {
-    @apply font-mono text-[13px] text-ink/80 tabular-nums;
+    @apply font-mono text-[13px] text-ink tabular-nums;
   }
   .time {
     @apply font-mono text-xs text-muted tabular-nums whitespace-nowrap;
@@ -121,79 +143,83 @@
     @apply font-mono text-xs text-muted;
   }
   .sec-title {
-    @apply text-xs font-medium uppercase tracking-wide text-faint;
+    @apply text-xs font-medium tracking-wide text-muted;
   }
+
+  /* Chip（配置来源标签）：M3 chip 8dp 圆角 */
   .src {
-    @apply text-[10px] text-primary bg-primary-soft rounded px-1.5 py-0.5 ml-2 whitespace-nowrap;
+    @apply text-[11px] text-[#0C1C22] bg-secondary-container rounded-sm px-2 py-0.5 ml-2 whitespace-nowrap font-normal;
   }
 
-  /* 网格视图里的文件类型角标 */
+  /* 文件类型角标 */
   .ext {
-    @apply font-mono text-[9px] font-medium tracking-wide text-muted border border-rule rounded px-1 py-0.5 flex-none bg-soft uppercase;
+    @apply font-mono text-[10px] font-medium tracking-wide text-muted border border-outline-variant rounded-sm px-1.5 py-0.5 flex-none bg-transparent uppercase;
   }
 
-  /* ---------- 侧边栏菜单项（Cloudreve 式） ---------- */
+  /* ============ 导航抽屉 ============
+     M3 drawer item：56dp 高，激活项用 pill 形 secondary-container 指示器 */
   .nav-item {
-    @apply flex items-center gap-3 h-10 px-3 rounded text-sm text-ink/80 transition-colors cursor-pointer select-none;
+    @apply flex items-center gap-3 h-14 px-4 rounded-full text-sm text-ink transition-colors cursor-pointer select-none;
   }
   .nav-item:hover {
-    @apply bg-[#f0f0f0];
+    background: rgba(26, 28, 30, 0.08); /* state layer 8% */
   }
   .nav-item-active {
-    @apply bg-primary-soft text-primary font-medium;
+    @apply bg-secondary-container text-[#0C1C22] font-medium;
   }
   .nav-icon {
-    @apply w-5 h-5 flex-none text-muted;
+    @apply w-6 h-6 flex-none text-muted;
   }
   .nav-item-active .nav-icon {
-    @apply text-primary;
+    @apply text-[#0C1C22];
   }
   .nav-badge {
     @apply ml-auto text-xs text-faint font-mono;
   }
 
-  /* ---------- 表格 ---------- */
+  /* ============ 表格 ============ */
   table {
     @apply w-full border-collapse;
   }
   thead th {
-    @apply text-left text-xs font-medium uppercase tracking-wide text-muted border-b border-rule pb-2 pt-2 px-2;
+    @apply text-left text-xs font-medium tracking-wide text-muted border-b border-outline-variant pb-2 pt-2 px-3;
   }
   tbody td {
-    @apply py-2.5 px-2 border-b border-[#f0f0f0] text-sm;
+    @apply py-3 px-3 border-b border-outline-variant/40 text-sm;
   }
   tbody tr:hover {
-    @apply bg-soft;
+    background: rgba(26, 28, 30, 0.04);
   }
 
-  /* ---------- 提示条 ---------- */
+  /* ============ 提示条 ============ */
   .alert {
-    @apply rounded px-3 py-2.5 text-[13px] leading-relaxed border;
+    @apply rounded-md px-4 py-3 text-[13px] leading-relaxed border-none;
   }
   .alert-info {
-    @apply bg-primary-soft border-[#bbdefb] text-[#0d47a1];
+    @apply bg-primary-soft text-[#001F2C];
   }
   .alert-warn {
-    @apply bg-[#fff8e1] border-[#ffe082] text-[#8d6e00];
+    @apply bg-[#FFDDB3] text-[#573300];
   }
   .alert-error {
-    @apply bg-dangerSoft border-[#ffcdd2] text-[#b71c1c];
+    @apply bg-error-container text-[#410002];
   }
 
-  /* 开关（设置页） */
+  /* ============ Switch（M3） ============ */
   .switch {
-    @apply w-9 h-5 rounded-full border border-faint relative flex-none cursor-pointer transition-colors;
+    @apply w-[52px] h-8 rounded-full border-2 border-outline relative flex-none cursor-pointer transition-colors bg-surface-container-highest;
   }
   .switch-on {
     @apply bg-primary border-primary;
   }
   .switch-dot {
-    @apply absolute top-[3px] w-3.5 h-3.5 rounded-full bg-faint transition-all;
+    @apply absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all;
+    left: 6px;
+    background: theme('colors.outline');
   }
   .switch-on .switch-dot {
-    @apply left-[18px] bg-white;
-  }
-  .switch-off .switch-dot {
-    @apply left-[3px];
+    @apply w-6 h-6;
+    left: 22px;
+    background: #fff;
   }
 }
