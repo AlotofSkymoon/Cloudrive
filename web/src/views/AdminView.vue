@@ -106,15 +106,15 @@ onMounted(() => {
   <div class="flex h-viewport overflow-hidden bg-canvas stacked:flex-col stacked:h-auto stacked:overflow-visible">
     <!-- 左侧导航抽屉 -->
     <aside
-      class="w-[280px] flex-none bg-surface-container-low border-r border-outline-variant flex flex-col stacked:w-full stacked:border-r-0 stacked:border-b"
+      class="w-[260px] flex-none bg-canvas border-r border-outline-variant flex flex-col stacked:w-full stacked:border-r-0 stacked:border-b"
     >
-      <div class="flex items-center gap-3 px-4 h-16 flex-none">
-        <BrandLogo :size="26" />
-        <span class="text-lg tracking-tight">Cloudrive</span>
+      <div class="flex items-center gap-2.5 px-4 h-14 flex-none">
+        <BrandLogo :size="24" />
+        <span class="text-[17px] font-semibold tracking-tight">Cloudrive</span>
       </div>
 
       <nav class="flex-1 overflow-y-auto pb-2 stacked:flex stacked:flex-none stacked:gap-1 stacked:overflow-x-auto stacked:overflow-y-hidden stacked:px-2 stacked:py-1">
-        <div class="px-4 pt-2 pb-1 text-xs font-medium tracking-wide text-faint">我的文件</div>
+        <div class="px-4 pt-2 pb-1 text-[13px] text-muted">我的文件</div>
         <div class="px-2">
           <div
             v-for="t in library"
@@ -145,7 +145,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="px-4 pt-4 pb-1 text-xs font-medium tracking-wide text-faint">管理</div>
+        <div class="px-4 pt-4 pb-1 text-[13px] text-muted">管理</div>
         <div class="px-2">
           <div
             v-for="t in manage"
@@ -174,13 +174,13 @@ onMounted(() => {
 
       <!-- 存储用量 -->
       <div class="flex-none border-t border-outline-variant px-4 py-4 compact:hidden stacked:flex stacked:flex-row stacked:items-center stacked:gap-3 stacked:py-2">
-        <div class="text-xs text-muted mb-2">存储空间</div>
+        <div class="text-[13px] text-muted mb-2">存储空间</div>
         <div class="h-1.5 bg-outline-variant rounded-full overflow-hidden mb-2">
           <i class="bar-fill block h-full bg-primary rounded-full" :style="{ width: usedPct + '%' }"></i>
         </div>
         <div class="text-xs text-muted font-mono">{{ usageText }}</div>
         <div class="flex items-center gap-2 mt-3">
-          <span class="w-8 h-8 rounded-full bg-primary-soft text-[#001F2C] flex items-center justify-center text-xs font-medium flex-none">A</span>
+          <span class="w-8 h-8 rounded-full bg-soft text-ink flex items-center justify-center text-xs font-medium flex-none">A</span>
           <span class="text-sm flex-1 truncate">admin</span>
           <button class="text-xs text-muted hover:text-error" @click="logout">退出</button>
         </div>
@@ -189,27 +189,25 @@ onMounted(() => {
 
     <!-- 中间主区 -->
     <main class="flex-1 min-w-0 flex flex-col overflow-hidden stacked:overflow-visible">
-      <header class="h-16 flex-none bg-surface-container border-b border-outline-variant flex items-center px-6 gap-3 compact:px-3 compact:gap-1 pt-safe">
-        <nav class="flex items-center text-sm text-muted min-w-0">
-          <span class="cursor-pointer hover:text-ink" @click="active = 'all'">我的文件</span>
-          <template v-if="active !== 'all'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="mx-1 text-faint flex-none"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6Z" /></svg>
-            <span class="text-ink font-medium truncate">{{ currentLabel }}</span>
-          </template>
-        </nav>
-        <span class="flex-1"></span>
-        <span class="text-xs text-faint font-mono mr-2 hidden sm:inline">{{ stats ? stats.files + ' 个对象' : '' }}</span>
-        <button class="btn btn-text btn-sm compact:hidden" @click="loadStats(); loadBansCount()">刷新</button>
-        <!-- Cloudreve 的「+ New」在顶栏右侧；手机上只留图标，保证最小点按区域 -->
-        <button class="btn btn-filled btn-sm" @click="newUpload" :title="'新建'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z" /></svg>
-          <span class="compact:hidden">新建</span>
-        </button>
+      <!-- SwiftUI 风格的大标题导航栏：34px 粗体标题 + 毛玻璃 -->
+      <header class="navbar large pt-safe">
+        <div class="nav-large-title truncate">{{ currentLabel || '我的文件' }}</div>
+        <div class="nav-actions flex items-center gap-1">
+          <span class="text-[13px] text-faint font-mono mr-1 hidden sm:inline">{{ stats ? stats.files + ' 个对象' : '' }}</span>
+          <button class="nav-btn compact:hidden" @click="loadStats(); loadBansCount()">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z" /></svg>
+          </button>
+          <!-- 「+ 新建」：iOS 里是 tint 色的圆角按钮 -->
+          <button class="fab-extended compact:!px-3" @click="newUpload" :title="'新建'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z" /></svg>
+            <span class="compact:hidden">新建</span>
+          </button>
+        </div>
       </header>
 
       <div class="flex-1 overflow-y-auto px-6 py-5 stacked:px-3 stacked:overflow-visible pb-safe">
-        <!-- 切换视图时新内容从上方顺滑落下（:key 变化才触发过渡） -->
-        <Transition name="view" mode="out-in">
+        <!-- 切换视图走 SwiftUI NavigationStack 的 push：新页从右推入、旧页视差左移 -->
+        <Transition name="push" mode="out-in">
           <div :key="active">
             <FilesPanel
               v-if="isFileView"

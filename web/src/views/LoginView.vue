@@ -66,31 +66,33 @@ onMounted(probe);
 
 <template>
   <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe">
-    <!-- 品牌 -->
-    <div class="flex flex-col items-center mb-6">
-      <BrandLogo :size="56" class="mb-3" />
-      <h1 class="text-2xl font-medium tracking-tight m-0">Cloudrive</h1>
-      <p class="text-sm text-muted m-0 mt-1">私人网盘 · 直链分享</p>
+    <!-- 品牌：iOS 登录页通常是图标 + 大标题 -->
+    <div class="flex flex-col items-center mb-8">
+      <BrandLogo :size="64" class="mb-4" />
+      <h1 class="text-[28px] font-bold tracking-tight m-0">Cloudrive</h1>
+      <p class="text-[15px] text-muted m-0 mt-1">私人网盘 · 直链分享</p>
     </div>
 
-    <!-- 登录卡片 -->
-    <div class="card w-full max-w-sm p-8 shadow-e2 compact:p-6 compact:max-w-none">
+    <!-- 登录表单：iOS inset grouped 卡片 -->
+    <div class="w-full max-w-sm compact:max-w-none">
       <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
 
       <form @submit.prevent="login">
-        <label for="pwd" class="block text-xs font-medium uppercase tracking-wide text-muted mb-1.5">登录密码</label>
-        <input
-          id="pwd"
-          v-model="pwd"
-          type="password"
-          autocomplete="current-password"
-          placeholder="输入管理员密码"
-          :disabled="noPassword"
-          class="input"
-          @keyup.enter="login"
-        />
+        <div class="card px-4 py-3 mb-4">
+          <label for="pwd" class="block text-[13px] text-muted mb-1">登录密码</label>
+          <input
+            id="pwd"
+            v-model="pwd"
+            type="password"
+            autocomplete="current-password"
+            placeholder="必填"
+            :disabled="noPassword"
+            class="input !px-0 !bg-transparent"
+            @keyup.enter="login"
+          />
+        </div>
 
-        <button type="submit" :disabled="noPassword || busy" class="btn btn-filled w-full mt-5">
+        <button type="submit" :disabled="noPassword || busy" class="btn btn-filled w-full">
           {{ busy ? '验证中…' : '登 录' }}
         </button>
       </form>
@@ -99,7 +101,7 @@ onMounted(probe);
     </div>
 
     <!-- 实例信息 -->
-    <div class="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-faint font-mono">
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[13px] text-faint font-mono">
       <span v-if="status?.driver">{{ status.driver }}</span>
       <span v-if="status?.bucket">{{ status.bucket }}</span>
       <span>{{ status?.https === false ? 'HTTP' : 'HTTPS' }}</span>

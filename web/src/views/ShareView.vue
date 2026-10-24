@@ -95,7 +95,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
     <!-- 品牌 -->
     <div class="flex items-center gap-2 mb-5">
       <BrandLogo :size="26" />
-      <span class="text-lg font-medium tracking-tight">Cloudrive</span>
+      <span class="text-[17px] font-semibold tracking-tight">Cloudrive</span>
     </div>
 
     <div class="card w-full max-w-md overflow-hidden compact:max-w-none">
@@ -115,14 +115,14 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
           <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm-1 7V3.5L18.5 9H13Z" />
           </svg>
-          <span class="font-mono text-xs uppercase tracking-wide">{{ fileExt(s.file_name) }}</span>
+          <span class="font-mono text-[13px] uppercase tracking-wide">{{ fileExt(s.file_name) }}</span>
         </div>
       </div>
 
       <!-- 文件信息 -->
       <div class="px-5 py-4">
-        <h2 class="text-base font-medium m-0 mb-1 break-all">{{ s.file_name }}</h2>
-        <div class="text-xs text-muted">{{ fmtBytes(s.file_size) }} · {{ s.file_mime || '文件' }}</div>
+        <h2 class="text-[17px] font-semibold m-0 mb-1 break-all">{{ s.file_name }}</h2>
+        <div class="text-[13px] text-muted">{{ fmtBytes(s.file_size) }} · {{ s.file_mime || '文件' }}</div>
 
         <div class="mt-4 space-y-0">
           <div class="flex justify-between py-2 border-b border-rule text-[13px]">
@@ -153,7 +153,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
 
         <button v-if="!disabled" class="btn btn-filled w-full" :disabled="busy" @click="start">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5Zm-7 2h14v2H5v-2Z" /></svg>
-          {{ busy ? '处理中…' : '下 载' }}
+          {{ busy ? '处理中…' : '下载' }}
         </button>
         <button v-else class="btn btn-outlined w-full" disabled>
           {{ s.banned ? 'IP 已被限制' : s.error || '不可用' }}
@@ -163,7 +163,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
 
     <div v-if="err" class="alert alert-error mt-4 w-full max-w-md">{{ err }}</div>
 
-    <div class="mt-5 text-xs text-faint text-center">由 Cloudrive 提供 · 下载走直链</div>
+    <div class="mt-6 text-[13px] text-faint text-center">由 Cloudrive 提供 · 下载走直链</div>
 
     <!-- 灯箱 -->
     <Transition name="fade">

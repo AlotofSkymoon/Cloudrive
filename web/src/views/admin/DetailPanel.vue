@@ -120,13 +120,13 @@ async function remove() {
     <!-- 元信息 -->
     <div class="px-4 pb-2">
       <div class="sec-title mb-2">属性</div>
-      <div class="flex justify-between py-2 border-b border-outline-variant/40 text-[13px]">
+      <div class="flex justify-between py-2 border-b border-outline-variant text-[13px]">
         <span class="text-muted">类型</span><span class="font-mono text-[12px]">{{ file.mime || '—' }}</span>
       </div>
-      <div class="flex justify-between py-2 border-b border-outline-variant/40 text-[13px]">
+      <div class="flex justify-between py-2 border-b border-outline-variant text-[13px]">
         <span class="text-muted">大小</span><span class="font-mono text-[12px]">{{ fmtBytes(file.size) }}</span>
       </div>
-      <div class="flex justify-between py-2 border-b border-outline-variant/40 text-[13px]">
+      <div class="flex justify-between py-2 border-b border-outline-variant text-[13px]">
         <span class="text-muted">上传时间</span><span class="font-mono text-[12px]">{{ fmtFull(file.uploaded_at) }}</span>
       </div>
       <div class="flex justify-between py-2 text-[13px]">

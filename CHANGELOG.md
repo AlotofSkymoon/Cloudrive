@@ -1,5 +1,50 @@
 # 变更记录
 
+## 2.0.0 — 2026-10-24
+
+界面从 **Material 3 / Cloudreve 风格** 改为 **SwiftUI / iOS 风格**，并新增自动深色模式。
+
+### 设计令牌
+
+配色全部换成 iOS 系统色（systemBlue / systemRed / systemGreen / label / separator / systemFill），并且**浅色深色各一套**，靠 `prefers-color-scheme` 自动切换，不用手动设置。
+
+令牌集中在 `web/src/style.css` 的 `:root` 与 `tailwind.config.js`。**改配色只动这两处**——Tailwind 的颜色名沿用原来的语义名（`primary` / `canvas` / `ink` / `muted` …），只是把值换成了 `rgb(var(--x) / <alpha-value>)`，所以视图里已有的类名全部继续有效。
+
+### 具体变化
+
+| 元素 | 之前（M3） | 现在（iOS） |
+| --- | --- | --- |
+| 主色 | 蓝灰 `#00639B` | systemBlue `#007AFF` |
+| 背景 | 浅灰白 | systemGroupedBackground `#F2F2F7` |
+| 卡片 | 白底 + 阴影 | inset grouped：白底 10px 圆角，靠灰底分层次，几乎不用阴影 |
+| 分隔线 | 1px 实色 | 0.5px 发丝线（iOS separator） |
+| 按钮 | 全圆角胶囊 | 10px 圆角矩形 |
+| 开关 | M3 蓝底 | iOS 绿色 `#34C759`，51×31 |
+| 字体 | Roboto 优先 | SF Pro / 系统字体优先 |
+| 导航栏 | 面包屑 | 34px 粗体大标题 + `backdrop-filter` 毛玻璃 |
+| 页面切换 | 从上方落下 | SwiftUI NavigationStack 的 push（新页从右推入、旧页视差左移） |
+| 深色 | 无 | 跟随系统自动切换 |
+
+侧栏宽度收到 260px，底色改用分组灰；「+ 新建」从扩展 FAB 改成 tint 色圆角按钮。登录页、分享页、错误页同步改版。
+
+### 顺带修的
+
+- **6 处硬编码深色文字**（`text-[#001F2C]` 之类）改成语义色——深色模式下会出现深底深字看不见
+- **4 处 `border-outline-variant/40`**：Tailwind 的值里已含 alpha，再叠加会生成无效声明，去掉了修饰符
+- `theme-color` 同步成 iOS blue
+
+### 新增测试
+
+`test/swiftui-theme.test.ts`，10 组：两套令牌对称、变量都有定义、用的是 iOS 系统色、字体栈无 Roboto、圆角是 iOS 尺度、push 过渡、管理页确实用上了、毛玻璃与定位上下文、发丝线、无硬编码深色文字。
+
+「两套令牌对称」这条尤其重要：深色块漏定义某个变量时会**静默继承浅色值**——不报错，只是配色错乱，最难排查。
+
+### 升级
+
+重新部署即可。跟随系统深色模式，不想用就把系统切回浅色。
+
+---
+
 ## 1.8.4 — 2026-10-24
 
 修 v1.8.3 引入的类型错误：`tsc` 报 TS2367，`npm run typecheck` 过不了。

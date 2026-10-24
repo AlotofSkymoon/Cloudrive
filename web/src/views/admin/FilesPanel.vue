@@ -566,7 +566,7 @@ onMounted(() => load(true));
         <div
           v-for="t in uploading"
           :key="t.id"
-          class="flex items-start gap-3 px-4 py-3 border-b border-outline-variant/40 last:border-b-0"
+          class="flex items-start gap-3 px-4 py-3 border-b border-outline-variant last:border-b-0"
         >
           <span class="ext mt-0.5">{{ fileExt(t.name) }}</span>
 
@@ -575,15 +575,15 @@ onMounted(() => load(true));
               <span class="text-[13px] truncate flex-1" :title="t.name">{{ t.name }}</span>
               <span
                 v-if="t.status === 'uploading' || t.status === 'queued'"
-                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-secondary-container text-[#0C1C22] flex-none"
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-soft text-ink flex-none"
               >{{ t.status === 'queued' ? '排队中' : t.mode || '上传中' }}</span>
               <span
                 v-else-if="t.status === 'done'"
-                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-[#C8E7FF] text-[#001F2C] flex-none"
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-primary-soft text-ink flex-none"
               >已上传</span>
               <span
                 v-else
-                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-error-container text-[#410002] flex-none"
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-error-container text-danger flex-none"
               >失败</span>
             </div>
 

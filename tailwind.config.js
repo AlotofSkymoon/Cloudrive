@@ -17,87 +17,93 @@ export default {
         inline: { min: '1200px' },
       },
 
-      // —— Material 3 tonal palette（蓝色 key color 生成的色调色板）——
-      // 参考 M3 的颜色角色：primary / surface-container / outline / error …
+      // —— iOS / SwiftUI 系统色 ——
+      // 颜色名沿用原来的语义名（视图里已经在用），只把值换成 CSS 变量，
+      // 这样所有 class 名继续有效，同时获得浅色 / 深色两套外观。
+      // 变量定义在 web/src/style.css 的 :root 与 prefers-color-scheme: dark 里。
       colors: {
         primary: {
-          DEFAULT: '#00639B', // primary (T40)
-          dark: '#004E75',
-          light: '#4FA3D1',
-          soft: '#C8E7FF', // primary-container (T90)
-          container: '#C8E7FF',
+          DEFAULT: 'rgb(var(--c-tint) / <alpha-value>)', // systemBlue
+          dark: 'rgb(var(--c-tint-dark) / <alpha-value>)',
+          light: 'rgb(var(--c-tint-light) / <alpha-value>)',
+          // 淡色填充（iOS 的 tint 12% 底），用于 chip / 提示条
+          soft: 'rgb(var(--c-tint) / 0.12)',
+          container: 'rgb(var(--c-tint) / 0.12)',
         },
         'on-primary': '#FFFFFF',
-        'on-primary-container': '#001F2C',
+        'on-primary-container': 'rgb(var(--c-label) / 1)',
 
-        secondary: '#4F6169',
-        'secondary-container': '#D2E4EC',
-        'on-secondary-container': '#0C1C22',
+        secondary: 'rgb(var(--c-label-2) / 0.6)', // secondaryLabel
+        'secondary-container': 'rgb(var(--c-fill) / <alpha-value>)', // systemFill
+        'on-secondary-container': 'rgb(var(--c-label) / 1)',
 
-        surface: '#FCFCFD',
-        'surface-container-lowest': '#FFFFFF',
-        'surface-container-low': '#F7F9FC',
-        'surface-container': '#F2F5F8',
-        'surface-container-high': '#ECEFF3',
-        'surface-container-highest': '#E6EAEE',
-        'surface-variant': '#DFE3E8',
-        'on-surface': '#1A1C1E',
-        'on-surface-variant': '#44484D',
+        surface: 'rgb(var(--c-surface) / <alpha-value>)',
+        'surface-container-lowest': 'rgb(var(--c-surface) / <alpha-value>)',
+        'surface-container-low': 'rgb(var(--c-surface-2) / <alpha-value>)',
+        'surface-container': 'rgb(var(--c-fill) / <alpha-value>)',
+        'surface-container-high': 'rgb(var(--c-fill) / 0.16)',
+        'surface-container-highest': 'rgb(var(--c-fill) / 0.24)',
+        'surface-variant': 'rgb(var(--c-fill) / <alpha-value>)',
+        'on-surface': 'rgb(var(--c-label) / 1)',
+        'on-surface-variant': 'rgb(var(--c-label-2) / 0.6)',
 
-        outline: '#74787D',
-        'outline-variant': '#C4C8CC',
+        // iOS separator：0.5px 发丝线，带 18% 透明度
+        outline: 'rgb(var(--c-separator) / 0.3)',
+        'outline-variant': 'rgb(var(--c-separator) / 0.18)',
 
-        error: '#BA1A1A',
-        'error-container': '#FFDAD6',
-        'on-error-container': '#410002',
+        error: 'rgb(var(--c-red) / <alpha-value>)', // systemRed
+        'error-container': 'rgb(var(--c-red) / 0.12)',
+        'on-error-container': 'rgb(var(--c-red) / 1)',
 
-        // 语义别名：视图里沿用这些名字，值指向 M3 对应角色
-        canvas: '#F7F9FC', // surface-container-low
-        ink: '#1A1C1E', // on-surface
-        muted: '#44484D', // on-surface-variant
-        faint: '#74787D', // outline
-        rule: '#C4C8CC', // outline-variant
-        soft: '#F2F5F8', // surface-container
-        danger: '#BA1A1A',
-        dangerSoft: '#FFDAD6', // error-container
-        success: '#146C43',
-        warn: '#8A5000',
+        // 语义别名：视图里沿用这些名字
+        canvas: 'rgb(var(--c-bg) / <alpha-value>)', // systemGroupedBackground
+        ink: 'rgb(var(--c-label) / 1)', // label
+        muted: 'rgb(var(--c-label-2) / 0.6)', // secondaryLabel
+        faint: 'rgb(var(--c-label-3) / 0.3)', // tertiaryLabel
+        rule: 'rgb(var(--c-separator) / 0.18)', // separator
+        soft: 'rgb(var(--c-fill) / 0.12)', // systemFill
+        danger: 'rgb(var(--c-red) / 1)',
+        dangerSoft: 'rgb(var(--c-red) / 0.12)',
+        success: 'rgb(var(--c-green) / 1)', // systemGreen
+        warn: 'rgb(var(--c-orange) / 1)', // systemOrange
 
         // 兼容别名
-        accent: '#00639B',
+        accent: 'rgb(var(--c-tint) / <alpha-value>)',
       },
 
-      // M3 shape scale
+      // iOS 圆角：卡片 10px（inset grouped），控件 8px，抽屉 22px
       borderRadius: {
         none: '0',
-        xs: '4px', // extra-small：文本框
-        sm: '8px', // small：chip
-        DEFAULT: '12px', // medium：卡片
-        md: '12px',
-        lg: '16px', // large：抽屉、大卡片
-        xl: '28px', // extra-large：底部抽屉
-        full: '9999px', // full：按钮、导航指示器
+        xs: '6px', // 小控件
+        sm: '8px', // chip、小按钮
+        DEFAULT: '10px', // 卡片、输入框
+        md: '10px',
+        lg: '14px', // 弹窗
+        xl: '22px', // 底部抽屉
+        full: '9999px', // 圆形图标按钮、开关
       },
 
-      // M3 elevation（tonal elevation 的阴影值）
+      // iOS 的阴影很克制：inset grouped 卡片本身不带阴影，
+      // 只有浮层（弹窗、抽屉、侧栏）才用一层柔和阴影
       boxShadow: {
         e0: 'none',
-        e1: '0 1px 2px 0 rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15)',
-        e2: '0 1px 2px 0 rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15)',
-        e3: '0 1px 3px 0 rgba(0,0,0,.30), 0 4px 8px 3px rgba(0,0,0,.15)',
+        e1: '0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.06)',
+        e2: '0 2px 8px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.08)',
+        e3: '0 8px 30px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08)',
         // 兼容旧名
-        card: '0 1px 2px 0 rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15)',
-        raised: '0 1px 2px 0 rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15)',
-        dialog: '0 1px 3px 0 rgba(0,0,0,.30), 0 4px 8px 3px rgba(0,0,0,.15)',
+        card: '0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.06)',
+        raised: '0 2px 8px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.08)',
+        dialog: '0 8px 30px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08)',
       },
 
       fontFamily: {
+        // SF Pro 优先（iOS 系统字体），再回落到各平台系统字体
         sans: [
-          'Roboto',
-          'Roboto Flex',
           '-apple-system',
           'BlinkMacSystemFont',
-          'Segoe UI',
+          'SF Pro Text',
+          'SF Pro Display',
+          'Helvetica Neue',
           'PingFang SC',
           'Noto Sans SC',
           'Hiragino Sans GB',

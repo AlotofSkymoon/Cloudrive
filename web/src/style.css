@@ -2,6 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   设计令牌：iOS / SwiftUI 系统色
+   浅色与深色各一套，靠 prefers-color-scheme 切换。
+   值写成「空格分隔的 RGB 三元组」，供 Tailwind 的
+   rgb(var(--x) / <alpha-value>) 使用。
+   ============================================================ */
+:root {
+  --c-bg: 242 242 247; /* systemGroupedBackground */
+  --c-surface: 255 255 255; /* secondarySystemGroupedBackground */
+  --c-surface-2: 255 255 255;
+  --c-fill: 118 118 128; /* systemFill 基色（配 12% 透明度） */
+  --c-label: 0 0 0;
+  --c-label-2: 60 60 67; /* secondaryLabel */
+  --c-label-3: 60 60 67; /* tertiaryLabel */
+  --c-separator: 60 60 67; /* separator（配 18% 透明度） */
+  --c-tint: 0 122 255; /* systemBlue */
+  --c-tint-dark: 0 84 227;
+  --c-tint-light: 74 163 255;
+  --c-red: 255 59 48; /* systemRed */
+  --c-green: 52 199 89; /* systemGreen */
+  --c-orange: 255 149 0; /* systemOrange */
+  --nav-blur: 249 249 249;
+  --nav-blur-alpha: 0.82;
+  --hairline: 0.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: 0 0 0;
+    --c-surface: 28 28 30;
+    --c-surface-2: 28 28 30;
+    --c-fill: 118 118 128;
+    --c-label: 255 255 255;
+    --c-label-2: 235 235 245;
+    --c-label-3: 235 235 245;
+    --c-separator: 84 84 88;
+    --c-tint: 10 132 255;
+    --c-tint-dark: 54 156 255;
+    --c-tint-light: 79 169 255;
+    --c-red: 255 69 58;
+    --c-green: 48 209 88;
+    --c-orange: 255 159 10;
+    --nav-blur: 30 30 32;
+    --nav-blur-alpha: 0.8;
+    /* 发丝线在深浅色下都是 0.5px，这里显式写上，保持两套令牌对称 */
+    --hairline: 0.5px;
+  }
+}
+
 @layer base {
   html,
   body {
@@ -12,93 +61,95 @@
     overflow-x: hidden;
   }
   body {
-    /* M3：页面底色用 surface-container-low，文字用 on-surface */
     @apply bg-canvas text-ink;
     font-family: theme('fontFamily.sans');
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 15px; /* iOS 正文偏大，但不到 17，避免整体布局撑开 */
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: #c8e7ff;
-    color: #001f2c;
+    background: rgb(var(--c-tint) / 0.25);
+    color: rgb(var(--c-label) / 1);
   }
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #c4c8cc;
+    background: rgb(var(--c-fill) / 0.3);
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #74787d;
+    background: rgb(var(--c-fill) / 0.5);
   }
 }
 
 @layer components {
-  /* ============ 通用按钮骨架 ============
-     M3 按钮：高 40dp、圆角 full、label-large(14/500) */
+  /* ============ 按钮 ============
+     iOS 的按钮是圆角矩形（10px），不是 M3 的全圆角胶囊 */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full text-sm font-medium whitespace-nowrap transition-all;
+    @apply inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded text-[15px] font-normal whitespace-nowrap;
   }
   .btn:disabled {
     @apply opacity-40 cursor-not-allowed;
   }
 
-  /* Filled：主色实心（最高优先级操作） */
+  /* Filled：tint 实心。iOS 里这种按钮较少，主要用于登录、确认 */
   .btn-filled {
-    @apply bg-primary text-white shadow-e0;
+    @apply bg-primary text-white shadow-none;
   }
   .btn-filled:hover:not(:disabled) {
-    @apply shadow-e1;
-    background: #005b8f;
+    background: rgb(var(--c-tint-dark));
+  }
+  .btn-filled:active:not(:disabled) {
+    background: rgb(var(--c-tint-dark));
+    opacity: 0.85;
   }
 
-  /* Tonal：secondary-container 填充（次高优先级） */
+  /* Tonal → iOS 的 systemFill 灰底按钮 */
   .btn-tonal {
-    @apply bg-secondary-container text-[#0C1C22] shadow-e0;
+    @apply bg-soft text-ink shadow-none;
   }
   .btn-tonal:hover:not(:disabled) {
-    @apply shadow-e1;
+    background: rgb(var(--c-fill) / 0.2);
   }
 
   /* Outlined：描边 */
   .btn-outlined {
-    @apply bg-transparent text-primary border border-outline shadow-none;
+    @apply bg-transparent text-primary shadow-none;
+    border: 1px solid rgb(var(--c-tint) / 0.4);
   }
   .btn-outlined:hover:not(:disabled) {
-    background: rgba(0, 99, 155, 0.08);
+    background: rgb(var(--c-tint) / 0.08);
   }
 
-  /* Text：纯文字 */
+  /* Text：纯 tint 文字，无背景（iOS 导航栏按钮就是这个） */
   .btn-text {
-    @apply bg-transparent text-primary shadow-none px-3;
+    @apply bg-transparent text-primary shadow-none px-2;
   }
   .btn-text:hover:not(:disabled) {
-    background: rgba(0, 99, 155, 0.08);
+    opacity: 0.7;
   }
 
-  /* Text + error 色（删除类操作） */
+  /* Text + 破坏性操作：systemRed */
   .btn-error {
-    @apply bg-transparent text-error shadow-none px-3 font-medium;
+    @apply bg-transparent text-danger shadow-none px-2;
   }
   .btn-error:hover:not(:disabled) {
-    background: rgba(186, 26, 26, 0.08);
+    opacity: 0.7;
   }
 
   .btn-sm {
-    @apply h-8 px-4 text-[13px];
+    @apply h-8 px-3 text-[13px];
   }
-  /* 手机上加大到 44px，满足 M3 的最小点按区域要求 */
+  /* 手机上加大到 44px，满足最小点按区域 */
   @media (max-width: 599px) {
     .btn {
-      @apply h-11 px-5;
+      @apply h-11 px-4;
     }
     .btn-sm {
-      @apply h-11 px-4 text-sm;
+      @apply h-11 px-3 text-sm;
     }
-    /* 纯文字小按钮（列表操作）也要够大 */
     .btn-text {
       @apply min-h-[44px];
     }
@@ -107,28 +158,65 @@
     @apply w-full;
   }
 
-  /* Extended FAB（侧栏「+ 新建」）：M3 的 FAB 用 primary-container、
-     圆角 16dp，不是全圆角 */
+  /* 侧栏「+ 新建」：iOS 里是 tint 色的圆角按钮，不是扩展 FAB */
   .fab-extended {
-    @apply inline-flex items-center justify-center gap-2 h-14 px-4 rounded-lg bg-primary-container text-[#001F2C] text-sm font-medium transition-shadow shadow-e1;
+    @apply inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded text-[15px] bg-primary text-white transition-opacity shadow-none;
   }
   .fab-extended:hover {
-    @apply shadow-e2;
+    opacity: 0.88;
   }
 
-  /* ============ 卡片 ============
-     M3 elevated card：surface-container-low + elevation 1 + 12dp 圆角 */
+  /* ============ 卡片 / 分组 ============
+     iOS inset grouped：白底、10px 圆角、几乎不用阴影
+     （灰底背景已经把层次分出来了） */
   .card {
-    @apply bg-surface-container-low rounded border-none;
-    box-shadow: theme('boxShadow.e1');
+    @apply bg-surface rounded border-none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  /* ============ 导航栏（SwiftUI navigationBar） ============ */
+  .navbar {
+    /* nav-actions 在 .large 形态下是绝对定位的，需要这里提供定位上下文 */
+    position: relative;
+    @apply flex-none flex items-end justify-between gap-2 px-4 pb-2;
+    min-height: 52px;
+    background: rgb(var(--nav-blur) / var(--nav-blur-alpha));
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
+  }
+  /* 大标题形态：SwiftUI 的 .large 导航标题 */
+  .navbar.large {
+    @apply flex-col items-start justify-end;
+    min-height: 96px;
+  }
+  .nav-large-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
+    color: rgb(var(--c-label) / 1);
+  }
+  .nav-title {
+    @apply text-[17px] font-semibold;
+  }
+  .nav-btn {
+    @apply inline-flex items-center gap-1 px-1.5 py-1 text-[16px] text-primary bg-transparent border-0 rounded;
+  }
+  .nav-btn:active {
+    opacity: 0.5;
+  }
+  .navbar.large .nav-actions {
+    @apply absolute right-3 bottom-3;
   }
 
   /* ============ 表单 ============ */
   .field {
-    @apply flex items-center gap-4 py-3 border-b border-outline-variant;
+    @apply flex items-center gap-4 py-3;
+    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
   }
   .field-label {
-    @apply w-[180px] flex-none text-sm text-ink;
+    @apply w-[180px] flex-none text-[15px] text-ink;
   }
   @media (max-width: 599px) {
     .field {
@@ -145,14 +233,19 @@
     @apply text-xs text-faint mt-0.5;
   }
 
-  /* M3 outlined text field：4dp 圆角，聚焦时 2dp primary 边框 */
+  /* iOS 的文本输入框：无边框，靠灰底填充区分 */
   .input {
-    @apply flex-1 min-w-0 rounded-xs bg-transparent px-4 py-2.5 text-sm outline-none transition-all;
-    border: 1px solid theme('colors.outline');
+    @apply flex-1 min-w-0 rounded-sm px-3 py-2 text-[15px] outline-none;
+    background: rgb(var(--c-fill) / 0.12);
+    border: 1px solid transparent;
+    color: rgb(var(--c-label) / 1);
+  }
+  .input::placeholder {
+    color: rgb(var(--c-label-3) / 0.3);
   }
   .input:focus {
-    border: 2px solid theme('colors.primary.DEFAULT');
-    padding: 9px 15px; /* 补偿边框加粗，避免文字跳动 */
+    border-color: rgb(var(--c-tint) / 0.6);
+    background: rgb(var(--c-surface) / 1);
   }
   .unit {
     @apply text-xs text-faint whitespace-nowrap;
@@ -169,72 +262,84 @@
     @apply font-mono text-xs text-muted;
   }
   .sec-title {
-    @apply text-xs font-medium tracking-wide text-muted;
+    @apply text-[13px] text-muted;
   }
 
-  /* Chip（配置来源标签）：M3 chip 8dp 圆角 */
+  /* Chip（配置来源标签）：iOS 用 8px 圆角 + systemFill */
   .src {
-    @apply text-[11px] text-[#0C1C22] bg-secondary-container rounded-sm px-2 py-0.5 ml-2 whitespace-nowrap font-normal;
+    @apply text-[11px] text-muted bg-soft rounded-sm px-2 py-0.5 ml-2 whitespace-nowrap font-normal;
   }
 
   /* 文件类型角标 */
   .ext {
-    @apply font-mono text-[10px] font-medium tracking-wide text-muted border border-outline-variant rounded-sm px-1.5 py-0.5 flex-none bg-transparent uppercase;
+    @apply font-mono text-[10px] font-medium tracking-wide text-muted rounded-sm px-1.5 py-0.5 flex-none uppercase;
+    background: rgb(var(--c-fill) / 0.12);
   }
 
-  /* ============ 导航抽屉 ============
-     M3 drawer item：56dp 高，激活项用 pill 形 secondary-container 指示器 */
+  /* ============ 侧栏 ============
+     SwiftUI sidebar：选中项是圆角矩形 + tint 填充（iOS 14+ 样式） */
   .nav-item {
-    @apply flex items-center gap-3 h-14 px-4 rounded-full text-sm text-ink transition-colors cursor-pointer select-none;
+    @apply flex items-center gap-2.5 h-10 px-3 rounded text-[15px] text-ink cursor-pointer select-none;
   }
   .nav-item:hover {
-    background: rgba(26, 28, 30, 0.08); /* state layer 8% */
+    background: rgb(var(--c-fill) / 0.12);
   }
   .nav-item-active {
-    @apply bg-secondary-container text-[#0C1C22] font-medium;
+    background: rgb(var(--c-tint) / 1);
+    color: #fff;
+  }
+  .nav-item-active:hover {
+    background: rgb(var(--c-tint) / 1);
   }
   .nav-icon {
-    @apply w-6 h-6 flex-none text-muted;
+    @apply w-5 h-5 flex-none text-muted;
   }
   .nav-item-active .nav-icon {
-    @apply text-[#0C1C22];
+    @apply text-white;
   }
   .nav-badge {
     @apply ml-auto text-xs text-faint font-mono;
   }
+  .nav-item-active .nav-badge {
+    @apply text-white/80;
+  }
 
-  /* ============ 表格 ============ */
+  /* ============ 列表 / 表格 ============ */
   table {
     @apply w-full border-collapse;
   }
   thead th {
-    @apply text-left text-xs font-medium tracking-wide text-muted border-b border-outline-variant pb-2 pt-2 px-3;
+    @apply text-left text-xs font-normal text-muted pb-2 pt-2 px-3;
+    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
   }
   tbody td {
-    @apply py-3 px-3 border-b border-outline-variant/40 text-sm;
+    @apply py-3 px-3 text-[15px];
+    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
   }
   tbody tr:hover {
-    background: rgba(26, 28, 30, 0.04);
+    background: rgb(var(--c-fill) / 0.08);
   }
 
   /* ============ 提示条 ============ */
   .alert {
-    @apply rounded-md px-4 py-3 text-[13px] leading-relaxed border-none;
+    @apply rounded px-3.5 py-2.5 text-[13px] leading-relaxed border-none;
   }
   .alert-info {
-    @apply bg-primary-soft text-[#001F2C];
+    background: rgb(var(--c-tint) / 0.12);
+    color: rgb(var(--c-label) / 1);
   }
   .alert-warn {
-    @apply bg-[#FFDDB3] text-[#573300];
+    background: rgb(var(--c-orange) / 0.14);
+    color: rgb(var(--c-label) / 1);
   }
   .alert-error {
-    @apply bg-error-container text-[#410002];
+    background: rgb(var(--c-red) / 0.12);
+    color: rgb(var(--c-red) / 1);
   }
 
   /* ============ 设备适配 ============ */
 
-  /* 视口高度：手机上 100vh 会被浏览器地址栏顶掉一截，
-     能用 dvh 就用 dvh（iOS 15.4+ / Chrome 108+），老浏览器回落 vh */
+  /* 视口高度：手机上 100vh 会被浏览器地址栏顶掉一截 */
   .h-viewport {
     height: 100vh;
     height: 100dvh;
@@ -256,7 +361,7 @@
     padding-right: env(safe-area-inset-right, 0px);
   }
 
-  /* 表格横向滚动容器：窄屏上表格不再把页面撑破 */
+  /* 表格横向滚动容器 */
   .table-scroll {
     @apply overflow-x-auto;
     -webkit-overflow-scrolling: touch;
@@ -266,34 +371,56 @@
     min-width: 560px;
   }
 
-  /* 底部抽屉（手机上的详情面板 / 上传面板） */
+  /* 底部抽屉（iOS sheet：顶部大圆角） */
   .sheet {
-    @apply bg-surface-container-lowest shadow-e3;
+    @apply bg-surface shadow-e3;
+    border-radius: 22px 22px 0 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* ============ Switch（M3） ============ */
+  /* ============ Switch（iOS） ============ */
   .switch {
-    @apply w-[52px] h-8 rounded-full border-2 border-outline relative flex-none cursor-pointer transition-colors bg-surface-container-highest;
+    @apply w-[51px] h-[31px] rounded-full relative flex-none cursor-pointer transition-colors;
+    background: rgb(var(--c-fill) / 0.24);
   }
   .switch-on {
-    @apply bg-primary border-primary;
+    background: rgb(var(--c-green) / 1);
   }
   .switch-dot {
-    @apply absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all;
-    left: 6px;
-    background: theme('colors.outline');
+    @apply absolute rounded-full transition-all;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
   .switch-on .switch-dot {
-    @apply w-6 h-6;
     left: 22px;
-    background: #fff;
   }
 }
 
 /* ============ 动效 ============
    统一在这里定义，组件只用 <Transition name="xxx"> 引用。
-   全部尊重 prefers-reduced-motion，系统开了「减弱动态效果」就几乎不动画。 */
+   全部尊重 prefers-reduced-motion。 */
+
+/* ---- push：SwiftUI NavigationStack 的推入 ----
+   新页面从右侧推入，旧页面向左做 20% 视差位移。
+   用 mode="out-in" 时两段动画串行，观感接近原生 push。 */
+.push-enter-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.32s ease;
+}
+.push-leave-active {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+}
+.push-enter-from {
+  opacity: 0;
+  transform: translateX(100%);
+}
+.push-leave-to {
+  opacity: 0;
+  transform: translateX(-20%);
+}
 
 /* ---- 页面切换：新内容从上方顺滑落下 ---- */
 .view-enter-active {
@@ -311,7 +438,7 @@
   transform: translateY(8px);
 }
 
-/* 弹窗内容单独 zoom in（遮罩走 fade，内容走这个，组合起来才是「弹出来」） */
+/* 弹窗内容单独 zoom in（遮罩走 fade，内容走这个） */
 @keyframes zoomIn {
   from {
     opacity: 0;
@@ -326,7 +453,7 @@
   animation: zoomIn 0.24s cubic-bezier(0.34, 1.42, 0.64, 1);
 }
 
-/* ---- 弹窗：顺滑 zoom in（轻微回弹，M3 的 emphasized decelerate 感觉） ---- */
+/* ---- 弹窗：顺滑 zoom in ---- */
 .zoom-enter-active {
   transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.34, 1.42, 0.64, 1);
 }
@@ -414,9 +541,7 @@ select.input,
 textarea.input {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
-/* 进度条：宽度变化要平滑，不然上传时是一格一格跳。
-   只认这个类，别用 [class*='rounded-full'] 那种宽选择器——
-   它会命中导航条目、抽屉把手等一堆元素并覆盖它们自己的过渡。 */
+/* 进度条宽度变化要平滑，不然上传时是一格一格跳 */
 .bar-fill {
   transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }

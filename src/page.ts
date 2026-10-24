@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { renderLogo } from './logo.js';
 
-export const VERSION = '1.8.4';
+export const VERSION = '2.0.0';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -66,7 +66,7 @@ export function spaHtml(o: SpaOptions): string {
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#00639B">
+<meta name="theme-color" content="#007AFF">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <title>${esc(title)}</title>
