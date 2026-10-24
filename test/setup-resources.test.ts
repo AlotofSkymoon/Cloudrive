@@ -72,6 +72,51 @@ function prepare(id) {
   return dir;
 }
 
+/** 仓库里 wrangler.toml 的默认名是 cloudrive（迁移测试用这个） */
+const TOML_NEW = (id) => `name = "cloudrive"
+main = "src/index.ts"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "cloudrive"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cloudrive"
+database_id = "${id}"
+`;
+
+function prepareNew(id) {
+  const dir = prepare(id);
+  writeFileSync(join(dir, 'wrangler.toml'), TOML_NEW(id));
+  return dir;
+}
+
+/** 带自定义环境变量运行 */
+function runWith(dir, extraEnv) {
+  const env = {
+    ...process.env,
+    CLOUDFLARE_API_TOKEN: 'dummy-token',
+    CLOUDFLARE_ACCOUNT_ID: 'acct-0001',
+    GITHUB_OUTPUT: '',
+    GITHUB_STEP_SUMMARY: '',
+    ...extraEnv,
+  };
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [join(dir, 'scripts', 'setup-resources.mjs')], {
+      cwd: dir,
+      encoding: 'utf8',
+      env,
+    });
+    let out = '';
+    child.stdout.on('data', (c) => (out += c));
+    child.stderr.on('data', (c) => (out += c));
+    child.on('close', (code) =>
+      resolve({ code, out, toml: readFileSync(join(dir, 'wrangler.toml'), 'utf8') })
+    );
+  });
+}
+
 // 注意：必须用异步 spawn。mock 服务跑在本进程，spawnSync 会阻塞事件循环导致请求永远得不到响应。
 function run(dir, { base, wranglerBin } = {}) {
   const env = {
@@ -219,4 +264,153 @@ test('缺少 Cloudflare 凭据时明确失败', () => {
   });
   assert.notEqual(res.status, 0);
   assert.match(`${res.stdout}${res.stderr}`, /CLOUDFLARE_API_TOKEN/);
+});
+
+/* ---------- 资源名迁移：老用户复用 filecove，新用户建 cloudrive ---------- */
+
+test('老用户：有 filecove 就复用，不建 cloudrive，并把名字写回', async () => {
+  const api = await mockApi(({ method, path, query }) => {
+    // D1：cloudrive 查不到，filecove 查得到
+    if (path.endsWith('/d1/database')) {
+      const name = query.get('name');
+      if (method === 'GET') {
+        return name === 'filecove' ? okList([{ name: 'filecove', uuid: UUID_A }]) : okList([]);
+      }
+      throw new Error('不应创建任何 D1 库');
+    }
+    // R2：只有 filecove
+    if (path.endsWith('/r2/buckets')) {
+      return { json: { success: true, result: { buckets: [{ name: 'filecove' }] } } };
+    }
+    return {};
+  });
+  afterEach(api.close);
+  const dir = prepareNew('待自动填充');
+  const r = await run(dir, { base: api.base });
+
+  assert.equal(r.code, 0);
+  assert.match(r.out, /复用已有 D1 数据库 filecove/, '没有复用旧库');
+  assert.match(r.out, /旧项目留下的库/, '没有提示这是旧库');
+  assert.match(r.out, /复用已有 R2 存储桶 filecove/, '没有复用旧桶');
+  // 关键：绝不能创建 cloudrive
+  const created = api.calls.filter((c) => c.method === 'POST');
+  assert.equal(created.length, 0, `不应该创建任何资源，实际创建了 ${JSON.stringify(created)}`);
+  // 实际用到的名字要写回 toml，下次不用再探测
+  assert.match(r.toml, /database_name\s*=\s*"filecove"/, 'database_name 没写回');
+  assert.match(r.toml, /bucket_name\s*=\s*"filecove"/, 'bucket_name 没写回');
+  assert.equal(idOf(r.toml), UUID_A);
+});
+
+test('新用户：都没有时创建 cloudrive', async () => {
+  const api = await mockApi(({ method, path, body }) => {
+    if (path.endsWith('/d1/database')) {
+      return method === 'GET' ? okList([]) : okOne({ uuid: UUID_B, name: body.name });
+    }
+    if (path.endsWith('/r2/buckets')) {
+      return method === 'GET' ? { json: { success: true, result: { buckets: [] } } } : okOne({ name: body.name });
+    }
+    return {};
+  });
+  afterEach(api.close);
+  const dir = prepareNew('待自动填充');
+  const r = await run(dir, { base: api.base });
+
+  assert.equal(r.code, 0);
+  assert.match(r.out, /创建 D1 数据库：cloudrive/);
+  assert.match(r.out, /R2 存储桶 cloudrive 已创建/);
+  // 两个 POST 都是 cloudrive
+  const names = api.calls.filter((c) => c.method === 'POST').map((c) => c.body?.name);
+  assert.deepEqual(names, ['cloudrive', 'cloudrive'], `创建的名字不对：${JSON.stringify(names)}`);
+  assert.match(r.toml, /database_name\s*=\s*"cloudrive"/);
+  assert.match(r.toml, /bucket_name\s*=\s*"cloudrive"/);
+});
+
+test('两个都存在时优先用 cloudrive（新名优先）', async () => {
+  const api = await mockApi(({ method, path, body }) => {
+    if (path.endsWith('/d1/database')) {
+      if (method === 'GET') {
+        const name = new URLSearchParams(path).get('name');
+        const q = path.includes('?') ? path.slice(path.indexOf('?')) : '';
+        void name; void q;
+        return okList([
+          { name: 'cloudrive', uuid: UUID_B },
+          { name: 'filecove', uuid: UUID_A },
+        ]);
+      }
+      throw new Error('不应创建');
+    }
+    if (path.endsWith('/r2/buckets')) {
+      return { json: { success: true, result: { buckets: [{ name: 'cloudrive' }, { name: 'filecove' }] } } };
+    }
+    return {};
+  });
+  afterEach(api.close);
+  const dir = prepareNew('待自动填充');
+  const r = await run(dir, { base: api.base });
+
+  assert.equal(r.code, 0);
+  assert.match(r.out, /复用已有 D1 数据库 cloudrive/, '没有优先用新名');
+  assert.match(r.out, /复用已有 R2 存储桶 cloudrive/);
+  assert.equal(idOf(r.toml), UUID_B, '用的是旧库的 uuid');
+  assert.equal(api.calls.filter((c) => c.method === 'POST').length, 0, '不应创建任何资源');
+});
+
+test('R2 桶列表分页时也能找到（不会漏判成不存在）', async () => {
+  let page = 0;
+  const api = await mockApi(({ method, path }) => {
+    if (path.endsWith('/d1/database')) {
+      return method === 'GET' ? okList([{ name: 'filecove', uuid: UUID_A }]) : okOne({ uuid: UUID_A });
+    }
+    if (path.endsWith('/r2/buckets')) {
+      if (method === 'GET') {
+        page++;
+        // 第一页只有别的桶 + 游标，第二页才是 filecove
+        if (page === 1) {
+          return { json: { success: true, result: { buckets: [{ name: 'other' }] }, result_info: { cursor: 'page2' } } };
+        }
+        return { json: { success: true, result: { buckets: [{ name: 'filecove' }] } } };
+      }
+      throw new Error('不应创建桶——分页没翻完就误判成不存在了');
+    }
+    return {};
+  });
+  afterEach(api.close);
+  const dir = prepareNew('待自动填充');
+  const r = await run(dir, { base: api.base });
+
+  assert.equal(r.code, 0);
+  assert.match(r.out, /复用已有 R2 存储桶 filecove/, '分页第二页的桶没被找到');
+  assert.equal(api.calls.filter((c) => c.method === 'POST' && c.path.endsWith('/r2/buckets')).length, 0);
+});
+
+test('显式指定名字时不走迁移探测', async () => {
+  const api = await mockApi(({ method, path, body }) => {
+    if (path.endsWith('/d1/database')) {
+      return method === 'GET' ? okList([]) : okOne({ uuid: UUID_B, name: body.name });
+    }
+    if (path.endsWith('/r2/buckets')) {
+      return method === 'GET' ? { json: { success: true, result: { buckets: [] } } } : okOne({ name: body.name });
+    }
+    return {};
+  });
+  afterEach(api.close);
+  const dir = prepareNew('待自动填充');
+  const r = await runWith(dir, {
+    CF_API_BASE: api.base,
+    D1_DATABASE_NAME: 'my-db',
+    R2_BUCKET_NAME: 'my-bucket',
+  });
+
+  assert.equal(r.code, 0);
+  assert.match(r.out, /创建 D1 数据库：my-db/);
+  assert.match(r.out, /R2 存储桶 my-bucket 已创建/);
+  // 显式指定后不该再去查 filecove / cloudrive
+  const queried = api.calls
+    .filter((c) => c.method === 'GET' && c.path.endsWith('/d1/database'))
+    .map((c) => c.query || '');
+  assert.equal(
+    queried.some((q) => q.includes('filecove') || q.includes('cloudrive')),
+    false,
+    `显式指定时不该再探测默认名，实际查了：${JSON.stringify(queried)}`
+  );
 });

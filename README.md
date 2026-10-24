@@ -1,6 +1,6 @@
 # Cloudrive —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v1.6.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v1.7.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -100,7 +100,7 @@ npm test               # vitest
 ### 4. 触发部署
 **Actions → Deploy Cloudrive → Run workflow**（之后每次推 main 分支也会自动部署）。
 
-工作流会依次做：检查 Secrets → 装依赖 → **自动建/复用 D1 数据库 `filecove` 并把 id 写回 `wrangler.toml`** → **自动建/复用 R2 桶 `filecove`** → 建表 → 部署 Worker 并注入密钥。
+工作流会依次做：检查 Secrets → 装依赖 → **自动建/复用 D1 数据库 并把 id 写回 `wrangler.toml`** → **自动建/复用 R2 桶** → 建表 → 部署 Worker 并注入密钥。
 
 跑完在 **Run workflow 的 Summary** 里能看到用到的库名和桶名。数据库已存在就复用，重跑不会重复创建。
 
@@ -199,7 +199,7 @@ DOWNLOAD_MODE=auto
 | 名称 | 示例值 |
 | --- | --- |
 | `S3_ENDPOINT` | `https://<accountid>.r2.cloudflarestorage.com` |
-| `S3_BUCKET` | `filecove` |
+| `S3_BUCKET` | `cloudrive` |
 | `S3_REGION` | `auto` |
 | `S3_ACCESS_KEY_ID` | R2 API 令牌的 Access Key ID |
 | `S3_SECRET_ACCESS_KEY` | 对应的 Secret |
@@ -360,9 +360,18 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 **重跑工作流会重复建库或丢数据吗？**
 不会。脚本先查同名数据库，存在就复用；R2 桶已存在也直接跳过。只有首次会创建。
 
-**D1 / R2 名字必须叫 filecove 吗？**
-不是。改 `wrangler.toml` 里的 `bucket_name` / `database_name`（或用环境变量 `R2_BUCKET_NAME` / `D1_DATABASE_NAME` 覆盖），后续 Actions 会按新名字自动创建。代码里固定不变的是**绑定变量名** `BUCKET` 和 `DB`。
-注意：改名会指向**新建的空库/空桶**，原来的文件不在里面——要换名字请先迁移数据。项目从 Filecove 改名为 Cloudrive 时就是这么处理的：只改 Worker 名和界面显示，桶名和库名保持 `filecove`，所以已上传的文件不受影响。
+**老项目（filecove）重新部署会不会丢文件？**
+不会。部署脚本会按顺序找资源：
+
+1. 找 `cloudrive`（新名），有就用
+2. 没有就找 `filecove`（旧项目留下的），**有就继续用**，绝不重建
+3. 都没有（新用户）才新建 `cloudrive`
+
+找到哪个就把哪个写回 `wrangler.toml`，下次不用再找。所以老用户已上传的文件不受影响，新用户建的是 `cloudrive`。
+
+**想自己指定桶名 / 库名？**
+设环境变量 `R2_BUCKET_NAME` / `D1_DATABASE_NAME`。给了这两个就不再走上面那套探测，直接用你指定的名字。
+代码里固定不变的是**绑定变量名** `BUCKET` 和 `DB`。
 
 ---
 

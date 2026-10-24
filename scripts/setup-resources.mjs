@@ -5,8 +5,16 @@
  * 主路径走 Cloudflare REST API（返回确定的 JSON，不依赖 wrangler 输出格式）；
  * 只有 REST 不可用（网络受限等）时才回退到 wrangler CLI 并解析文本输出。
  *
- * - D1：同名库存在就复用，不存在就创建，然后把 uuid 写回 wrangler.toml 的 database_id
- * - R2：同名桶存在就跳过，不存在就创建
+ * - D1：存在就复用，不存在就创建，然后把 uuid 写回 wrangler.toml 的 database_id
+ * - R2：存在就跳过，不存在就创建
+ *
+ * 资源名（迁移兼容）：
+ *   老项目（Filecove 时期）建的桶和库叫 filecove，里面是用户的文件。
+ *   重新部署时按顺序探测：
+ *     1. cloudrive —— 新名，优先复用（见过一次之后每次都是它）
+ *     2. filecove  —— 老用户的库，找到了就继续用，绝不重建（数据在里面）
+ *     3. 都没有     —— 新用户，创建 cloudrive
+ *   探测到哪个就把哪个写回 wrangler.toml，下次不用再猜。
  *
  * 用法：
  *   CLOUDFLARE_API_TOKEN=xxx CLOUDFLARE_ACCOUNT_ID=xxx node scripts/setup-resources.mjs
@@ -29,6 +37,23 @@ const tomlPath = join(root, 'wrangler.toml');
 const API_BASE = (process.env.CF_API_BASE || 'https://api.cloudflare.com/client/v4').replace(/\/+$/, '');
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
+// ---------- 资源名（迁移兼容）----------
+const NEW_RESOURCE_NAME = 'cloudrive';
+const LEGACY_RESOURCE_NAME = 'filecove';
+
+/**
+ * 探测顺序：新名 → 旧名。都不存在时创建 createAs（默认新名）。
+ * 显式给了环境变量就只用它，不做迁移探测。
+ */
+function candidatesFor(explicit, configured) {
+  if (explicit) return { probe: [explicit], createAs: explicit };
+  const ordered = [];
+  for (const n of [configured || NEW_RESOURCE_NAME, NEW_RESOURCE_NAME, LEGACY_RESOURCE_NAME]) {
+    if (n && !ordered.includes(n)) ordered.push(n);
+  }
+  return { probe: ordered, createAs: ordered[0] };
+}
+
 // ---------- wrangler.toml ----------
 function parseConfig(text) {
   const pick = (re) => (re.exec(text) || [])[1] || '';
@@ -37,6 +62,12 @@ function parseConfig(text) {
     dbId: pick(/database_id\s*=\s*"([^"]*)"/),
     bucket: process.env.R2_BUCKET_NAME || pick(/bucket_name\s*=\s*"([^"]*)"/),
   };
+}
+
+function replaceOrAppend(text, key, value) {
+  const line = `${key} = "${value}"`;
+  const re = new RegExp(`^\\s*${key}\\s*=.*$`, 'm');
+  return re.test(text) ? text.replace(re, line) : `${text.trimEnd()}\n${line}\n`;
 }
 
 function writeDatabaseId(text, id) {
@@ -111,10 +142,18 @@ async function createD1(token, account, name) {
 }
 
 async function findR2(token, account, name) {
-  const res = await cf(token, `/accounts/${account}/r2/buckets`);
-  if (!res.ok) return null;
-  const list = res.data?.result?.buckets || res.data?.result || [];
-  return list.some((b) => b.name === name);
+  // 桶列表可能分页，翻完为止，否则桶多的时候会漏判成「不存在」而误建
+  let cursor;
+  for (let page = 0; page < 50; page++) {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '?per_page=1000';
+    const res = await cf(token, `/accounts/${account}/r2/buckets${q}`);
+    if (!res.ok) return false;
+    const list = res.data?.result?.buckets || res.data?.result || [];
+    if (list.some((b) => b.name === name)) return true;
+    cursor = res.data?.result_info?.cursor || res.data?.result?.cursor;
+    if (!cursor) return false;
+  }
+  return false;
 }
 
 async function createR2(token, account, name) {
@@ -197,50 +236,92 @@ async function main() {
     process.exit(1);
   }
 
-  const raw = readFileSync(tomlPath, 'utf8');
-  const cfg = parseConfig(raw);
-  const dbName = cfg.dbName || 'filecove';
-  const bucket = cfg.bucket || 'filecove';
+  let toml = readFileSync(tomlPath, 'utf8');
+  const cfg = parseConfig(toml);
+
+  const dbNames = candidatesFor(process.env.D1_DATABASE_NAME, cfg.dbName);
+  const bktNames = candidatesFor(process.env.R2_BUCKET_NAME, cfg.bucket);
 
   let uuid = UUID_RE.test(cfg.dbId || '') ? UUID_RE.exec(cfg.dbId)[0] : null;
+  // 实际用到的库名（可能和 toml 里写的不一样——老用户会落到 filecove）
+  let dbName = cfg.dbName || NEW_RESOURCE_NAME;
 
+  /* ---------- D1 ---------- */
   if (uuid) {
     console.log(`• D1 database_id 已配置（${uuid}），跳过创建`);
   } else {
-    console.log(`• 查找 D1 数据库：${dbName}`);
-    uuid = await findD1(token, accountId, dbName);
+
+
+    // 依次探测：新名 → 旧名（老用户的库，数据在里面）
+    for (const name of dbNames.probe) {
+      console.log(`• 查找 D1 数据库：${name}`);
+      const found = await findD1(token, accountId, name);
+      if (found) {
+        dbName = name;
+        uuid = found;
+        console.log(`✓ 复用已有 D1 数据库 ${name}（${uuid}）`);
+        if (name === LEGACY_RESOURCE_NAME) {
+          console.log('  ↳ 这是旧项目留下的库，继续复用（文件记录都在里面，不重建）');
+        }
+        break;
+      }
+    }
 
     if (!uuid) {
-      console.log(`• 未找到，创建 D1 数据库：${dbName}`);
-      const created = await createD1(token, accountId, dbName);
+      console.log(`• 未找到，创建 D1 数据库：${dbNames.createAs}`);
+      const created = await createD1(token, accountId, dbNames.createAs);
       if (created.uuid) {
         uuid = created.uuid;
-        console.log(created.existed ? `✓ 复用已有 D1 数据库 ${dbName}（${uuid}）` : `✓ 已创建 D1 数据库 ${dbName}（${uuid}）`);
+        dbName = dbNames.createAs;
+        console.log(
+          created.existed
+            ? `✓ 复用已有 D1 数据库 ${dbName}（${uuid}）`
+            : `✓ 已创建 D1 数据库 ${dbName}（${uuid}）`
+        );
       } else {
         const err = created.error;
         console.warn(`⚠ Cloudflare API 调用失败（HTTP ${err?.status}）：${(err?.messages || []).join(' / ')}`);
         console.warn('  回退到 wrangler CLI…');
-        uuid = wranglerD1Uuid(dbName);
+        uuid = wranglerD1Uuid(dbNames.createAs);
         if (!uuid) {
           fail('创建 D1 数据库失败。常见原因：API 令牌缺少 D1 编辑权限，或账户未开通 D1。');
           console.error('  请给令牌加上 Account → D1 : 编辑 权限后重试。');
           process.exit(1);
         }
+        dbName = dbNames.createAs;
         console.log(`✓ 已通过 wrangler 取得 D1 数据库 ${dbName}（${uuid}）`);
       }
-    } else {
-      console.log(`✓ 复用已有 D1 数据库 ${dbName}（${uuid}）`);
     }
 
-    writeDatabaseId(raw, uuid);
+    // 把实际用到的名字和 id 写回，下次不用再探测
+    if (dbName && dbName !== cfg.dbName) {
+      toml = replaceOrAppend(toml, 'database_name', dbName);
+      console.log(`✓ 已把 database_name 写回 wrangler.toml（${dbName}）`);
+    }
+    toml = replaceOrAppend(toml, 'database_id', uuid);
+    writeFileSync(tomlPath, toml, 'utf8');
     console.log('✓ 已把 database_id 写入 wrangler.toml');
-    stepSummary(`### Cloudflare 资源已就绪\n\n- D1 数据库：\`${dbName}\` → \`${uuid}\`\n- database_id 已写入 \`wrangler.toml\``);
+    stepSummary(
+      `### Cloudflare 资源已就绪\n\n- D1 数据库：\`${dbName}\` → \`${uuid}\`\n- database_id 已写入 \`wrangler.toml\``
+    );
   }
 
-  console.log(`• 检查 R2 存储桶：${bucket}`);
-  if (await findR2(token, accountId, bucket)) {
-    console.log(`✓ 复用已有 R2 存储桶 ${bucket}`);
-  } else {
+  /* ---------- R2 ---------- */
+  let bucket = null;
+  for (const name of bktNames.probe) {
+    console.log(`• 检查 R2 存储桶：${name}`);
+    if (await findR2(token, accountId, name)) {
+      bucket = name;
+      console.log(`✓ 复用已有 R2 存储桶 ${name}`);
+      if (name === LEGACY_RESOURCE_NAME) {
+        console.log('  ↳ 这是旧项目留下的桶，继续复用（文件都在里面，不重建）');
+      }
+      break;
+    }
+  }
+
+  if (!bucket) {
+    bucket = bktNames.createAs;
     const r2 = await createR2(token, accountId, bucket);
     if (r2.ok) {
       console.log(r2.existed ? `✓ 复用已有 R2 存储桶 ${bucket}` : `✓ R2 存储桶 ${bucket} 已创建`);
@@ -255,7 +336,14 @@ async function main() {
     }
   }
 
-  githubOutput({ 'database-id': uuid, 'database-name': dbName, 'bucket-name': bucket });
+  if (bucket !== cfg.bucket) {
+    toml = readFileSync(tomlPath, 'utf8'); // 上面可能刚写过，重新读再改
+    toml = replaceOrAppend(toml, 'bucket_name', bucket);
+    writeFileSync(tomlPath, toml, 'utf8');
+    console.log(`✓ 已把 bucket_name 写回 wrangler.toml（${bucket}）`);
+  }
+
+  githubOutput({ 'database-id': uuid, 'database-name': dbName || cfg.dbName, 'bucket-name': bucket });
 }
 
 main().catch((e) => {

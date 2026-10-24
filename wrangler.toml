@@ -9,21 +9,24 @@ compatibility_date = "2025-06-01"
 [build]
 command = "npm install && npm run build"
 
-# 注意：下面的 R2 桶名与 D1 库名保持 filecove 不变——数据在里面。
-# 项目改名为 Cloudrive 只影响 Worker 名与界面显示，改这两个名字会导致
-# 自动建库逻辑新建一个空库/空桶，已上传的文件就找不到了。
+# 资源名不用操心——部署脚本会自己找：
+#   1. 找 cloudrive（新名），有就用
+#   2. 没有就找 filecove（旧项目留下的），有就继续用（数据在里面，绝不重建）
+#   3. 都没有才新建 cloudrive
+# 找到哪个就把它写回这里的 bucket_name / database_name，下次不用再找。
+# 想自己指定名字，设环境变量 R2_BUCKET_NAME / D1_DATABASE_NAME（此时不做上面这套探测）。
 
-# 绑定 R2 存储桶（R2 绑定模式时使用；bucket_name 按你创建的桶名填写）
+# 绑定 R2 存储桶
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "filecove"
+bucket_name = "cloudrive"
 
 # D1 数据库：database_id 不用手填——
-#   GitHub Actions 部署时会自动建库并把 id 写进来；本地跑 `npm run setup` 也一样。
+#   GitHub Actions 部署时会自动建/复用并把 id 写进来；本地跑 `npm run setup` 也一样。
 #   只有走 Cloudflare 网页端「连接 GitHub」部署时，才需要手动填一次。
 [[d1_databases]]
 binding = "DB"
-database_name = "filecove"
+database_name = "cloudrive"
 database_id = "待自动填充（Actions / npm run setup 会自动写入）"
 
 # —— 关于环境变量（重要）——
@@ -61,7 +64,7 @@ database_id = "待自动填充（Actions / npm run setup 会自动写入）"
 #
 # —— 存储 ——
 # STORAGE_DRIVER   auto / r2 / s3（默认 auto）
-# R2_BUCKET_NAME   后台展示用的桶名（默认 "filecove"）
+# R2_BUCKET_NAME   后台展示用的桶名（默认 cloudrive；实际桶名是 filecove 的话在这里改）
 
 # 以下敏感项用 wrangler secret 设置，不要写进仓库：
 # npx wrangler secret put ADMIN_PASSWORD
@@ -72,6 +75,6 @@ database_id = "待自动填充（Actions / npm run setup 会自动写入）"
 # —— 若改用 S3 兼容存储/或让 R2 走 S3 API（推荐，支持浏览器直传+分片）——
 # 在控制台 Workers → 设置 → 变量 里添加（密钥类用"加密"类型）：
 # S3_ENDPOINT = "https://<accountid>.r2.cloudflarestorage.com"   # R2 示例
-# S3_BUCKET = "filecove"
+# S3_BUCKET = "cloudrive"
 # S3_REGION = "auto"
 # S3_FORCE_PATH_STYLE = "true"

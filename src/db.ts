@@ -69,7 +69,7 @@ const ready = new WeakSet();
 // 改这里请同步 scripts/preset-vars.mjs 里的说明。
 export const SEED_DEFAULTS = {
   STORAGE_DRIVER: 'auto',
-  R2_BUCKET_NAME: 'filecove',
+  R2_BUCKET_NAME: 'cloudrive',
   DOWNLOAD_MODE: 'auto',
   IP_MAX_DOWNLOADS: '30',
   IP_WINDOW_SECONDS: '3600',
@@ -188,7 +188,7 @@ export async function config(env) {
     multipartPartSize: Number(pick('MULTIPART_PART_SIZE', '16777216')) || 16777216,
     // 存储相关（网页里可改，密钥只告诉前端有没有填，不回传值）
     storageDriver: pick('STORAGE_DRIVER', 'auto'),
-    r2BucketName: pick('R2_BUCKET_NAME', 'filecove'),
+    r2BucketName: pick('R2_BUCKET_NAME', 'cloudrive'),
     s3Endpoint: pick('S3_ENDPOINT', ''),
     s3Bucket: pick('S3_BUCKET', ''),
     s3Region: pick('S3_REGION', 'auto'),

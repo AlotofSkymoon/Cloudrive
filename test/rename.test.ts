@@ -30,14 +30,16 @@ test('会话密钥默认值保持 filecove 不变', () => {
   );
 });
 
-test('R2 桶名与 D1 库名保持 filecove —— 数据在里面', () => {
-  const toml = read('wrangler.toml');
-  assert.match(toml, /bucket_name\s*=\s*"filecove"/, 'R2 桶名变了，会指向新建的空桶');
-  assert.match(toml, /database_name\s*=\s*"filecove"/, 'D1 库名变了，会指向新建的空库');
-
+test('部署脚本有旧资源名的迁移兼容逻辑', () => {
+  // 老用户的桶/库叫 filecove，里面是他们的文件。
+  // 重新部署时必须先找 filecove 并复用，不能因为改了名就重建一个空桶。
   const setup = read('scripts/setup-resources.mjs');
-  assert.match(setup, /cfg\.dbName \|\| 'filecove'/, '建库默认名变了');
-  assert.match(setup, /cfg\.bucket \|\| 'filecove'/, '建桶默认名变了');
+  assert.match(setup, /LEGACY_RESOURCE_NAME\s*=\s*'filecove'/, '缺 LEGACY_RESOURCE_NAME = filecove');
+  assert.match(setup, /NEW_RESOURCE_NAME\s*=\s*'cloudrive'/, '缺 NEW_RESOURCE_NAME = cloudrive');
+
+  // 探测顺序必须是「新名 → 旧名」，否则老用户会被误判成新用户
+  const order = setup.indexOf('NEW_RESOURCE_NAME, LEGACY_RESOURCE_NAME');
+  assert.ok(order > 0, '探测顺序不是 新名 → 旧名');
 });
 
 test('Worker 名已改为 cloudrive', () => {

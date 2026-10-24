@@ -18,7 +18,7 @@ const cfg = reactive<Config>({
   turnstileSecret: '',
   turnstileEnabled: false,
   storageDriver: 'auto',
-  r2BucketName: 'filecove',
+  r2BucketName: 'cloudrive',
   s3Endpoint: '',
   s3Bucket: '',
   s3Region: 'auto',
