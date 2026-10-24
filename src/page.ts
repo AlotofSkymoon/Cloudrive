@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { renderLogo } from './logo.js';
 
-export const VERSION = '1.8.2';
+export const VERSION = '1.8.3';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -18,7 +18,44 @@ function esc(s: unknown): string {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// 前端资源有没有构建过。
+// web-assets.ts 在仓库里是哨兵占位（见该文件头注释），只有 npm run build
+// 才会写入真产物。构建步骤一旦没执行（比如 Actions 里 build 被跳过、
+// 或控制台部署没配 build command），页面会是个空壳并且看不出原因——
+// 之前就是这样静默部署了几个月的旧界面。这里显式兜住，直接说明问题。
+export const ASSETS_BUILT = APP_JS !== '__CLOUDRIVE_ASSETS_NOT_BUILT__';
+
+/** 没构建时的说明页：告诉运维该怎么修，而不是给一个空白/过期的界面 */
+function notBuiltHtml(): string {
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>前端资源未构建 · Cloudrive</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#F7F9FC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1A1C1E}
+.c{max-width:520px;padding:32px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
+h1{margin:0 0 12px;font-size:18px;font-weight:500}
+p{margin:0 0 10px;font-size:14px;line-height:1.6;color:#44484D}
+code{font-family:ui-monospace,SF Mono,Menlo,Consolas,monospace;background:#F2F5F8;
+padding:2px 6px;border-radius:4px;font-size:13px}
+ol{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.8;color:#44484D}
+</style></head>
+<body><div class="c">
+<h1>前端资源未构建</h1>
+<p>Worker 已经在跑，但前端（Vue3 + Tailwind）的构建产物是占位内容，说明 <code>npm run build</code> 没有执行。</p>
+<p>请按下面任一步骤处理后重新部署：</p>
+<ol>
+<li>用 GitHub Actions 部署：工作流会依次执行 <code>build</code> → <code>typecheck</code> → <code>test</code>，构建一定有跑；查看日志里是否有 <code>vite build</code> 成功。</li>
+<li>用 Cloudflare 控制台「连接 GitHub」部署：确认 <code>wrangler.toml</code> 里的 <code>[build] command</code> 生效（<code>npm install &amp;&amp; npm run build</code>）。</li>
+<li>本地部署：先执行 <code>npm install &amp;&amp; npm run build</code>，再 <code>npx wrangler deploy</code>。</li>
+</ol>
+</div></body></html>`;
+}
+
 export function spaHtml(o: SpaOptions): string {
+  if (!ASSETS_BUILT) return notBuiltHtml();
   const boot = JSON.stringify({ view: o.view, version: VERSION, ...(o.boot || {}) });
   const title = o.title || 'Cloudrive';
   return `<!doctype html>
