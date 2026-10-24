@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
 import { api, type Config } from '../../api';
-import { logoSetting, setTint, TINTS, TINT_LABELS, TINT_NAMES, type TintName } from '../../theme';
+import {
+  logoSetting,
+  setTint,
+  TINTS,
+  TINT_LABELS,
+  TINT_NAMES,
+  type TintName,
+  appearanceSetting,
+  setAppearance,
+  APPEARANCE_LABELS,
+  type AppearanceSetting,
+} from '../../theme';
 import BrandLogo from '../../components/BrandLogo.vue';
 
 // 配置全部存在数据库里，在设置页改；环境变量只是兜底。
@@ -29,6 +40,7 @@ const cfg = reactive<Config>({
   storageQuotaGb: 10,
   logoVariant: 'color',
   tint: 'blue',
+  appearance: 'auto',
 });
 
 const sources = ref<Record<string, string>>({});
@@ -47,6 +59,15 @@ function tintSwatch(t: string): string {
   return `rgb(${v.base})`;
 }
 
+/** 外观模式的选项顺序：跟随系统 / 浅色 / 深色 */
+const APPEARANCE_NAMES: AppearanceSetting[] = ['auto', 'light', 'dark'];
+
+/** 改外观模式（跟随系统 / 浅色 / 深色）时立刻切换 */
+function onAppearanceChange() {
+  mark();
+  setAppearance(cfg.appearance);
+}
+
 /** 改主题色时立刻预览（存库前就能看到整个界面变色） */
 function onTintChange() {
   mark();
@@ -60,6 +81,10 @@ function onLogoChange() {
   if (v === 'color' || v === 'black' || v === 'white' || v === 'auto') logoSetting.value = v;
 }
 // 载入配置后同步一次，保证设置页里的预览和全局一致
+watch(
+  () => cfg.appearance,
+  (v) => setAppearance(String(v || 'auto'))
+);
 watch(
   () => cfg.tint,
   (v) => setTint(String(v || 'blue'))
@@ -105,6 +130,7 @@ async function save() {
     storageQuotaGb: Number(cfg.storageQuotaGb),
     logoVariant: cfg.logoVariant,
     tint: cfg.tint,
+    appearance: cfg.appearance,
     s3Endpoint: cfg.s3Endpoint,
     s3Bucket: cfg.s3Bucket,
     s3Region: cfg.s3Region,
@@ -366,6 +392,19 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      <!-- 外观模式：白天 / 夜间 -->
+      <div class="field">
+        <label class="field-label">
+          外观
+          <span class="block text-xs text-faint font-normal mt-0.5">白天模式或夜间模式，可锁定，不用改系统设置</span>
+        </label>
+        <div class="flex items-center gap-3 flex-1">
+          <select v-model="cfg.appearance" class="input !flex-none !w-36" @change="onAppearanceChange">
+            <option v-for="a in APPEARANCE_NAMES" :key="a" :value="a">{{ APPEARANCE_LABELS[a as AppearanceSetting] }}</option>
+          </select>
+        </div>
+      </div>
+
       <!-- 主题色：整个界面的主色 -->
       <div class="field">
         <label class="field-label">

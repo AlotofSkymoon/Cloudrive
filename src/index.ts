@@ -538,6 +538,7 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
       S3_SECRET_ACCESS_KEY: b.s3SecretAccessKey,
       LOGO_VARIANT: b.logoVariant ? db.normalizeLogoVariant(b.logoVariant) : null,
       TINT: b.tint ? db.normalizeTint(b.tint) : null,
+      APPEARANCE: b.appearance ? db.normalizeAppearance(b.appearance) : null,
     };
     // 保存前先把要写入的值合并起来试算一次，配置不完整就直接拒绝，
     // 免得存进去之后整个网盘打不开

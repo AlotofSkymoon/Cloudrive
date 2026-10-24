@@ -1,6 +1,6 @@
 # Cloudrive —— 用 Cloudflare Workers + R2 自建网盘（下载走直链）
 
-> 当前版本 **v2.1.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本 **v2.2.0**（成品版），变更记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 把 **Cloudflare R2**（或任何 S3 兼容存储）变成能上传、能分享、能直链下载的网盘，全部跑在 **Workers** 上（不是 Pages），不用服务器，用免费额度就能跑。
 
@@ -44,7 +44,7 @@ npm test               # vitest
 
 采用 **SwiftUI / iOS 风格**：系统色、大标题导航栏（毛玻璃）、inset grouped 分组卡片、0.5px 发丝线分隔、iOS 开关与圆角矩形按钮。
 
-**自动深色模式**：跟随系统的 `prefers-color-scheme`，浅色深色各一套完整令牌，不用手动切换。
+**深色模式**：默认跟随系统的 `prefers-color-scheme`，也可在设置 → 外观里锁定为浅色或深色，不用改系统设置。深浅各一套完整令牌。
 
 | 元素 | 说明 |
 | --- | --- |

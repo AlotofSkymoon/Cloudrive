@@ -28,8 +28,19 @@
   --hairline: 0.5px;
 }
 
+/* ============================================================
+   深色模式：跟随系统 + 手动强制
+   data-theme 由 JS 写在 <html> 上（见 web/src/theme.ts）：
+     - 不设 / auto → 跟随 prefers-color-scheme
+     - light      → 强制浅色（即使用系统是深色）
+     - dark       → 强制深色（即使用系统是浅色）
+
+   深色令牌在下面出现了两次（media 内一份、[data-theme='dark'] 一份），
+   这是 CSS 里没法复用规则集的无奈之举。两份必须逐字一致，否则
+   「跟随系统」和「手动深色」会显示成两种不同颜色——test/appearance.test.ts 钉住。
+   ============================================================ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --c-bg: 0 0 0;
     --c-surface: 28 28 30;
     --c-surface-2: 28 28 30;
@@ -49,6 +60,27 @@
     /* 发丝线在深浅色下都是 0.5px，这里显式写上，保持两套令牌对称 */
     --hairline: 0.5px;
   }
+}
+
+:root[data-theme='dark'] {
+    --c-bg: 0 0 0;
+    --c-surface: 28 28 30;
+    --c-surface-2: 28 28 30;
+    --c-fill: 118 118 128;
+    --c-label: 255 255 255;
+    --c-label-2: 235 235 245;
+    --c-label-3: 235 235 245;
+    --c-separator: 84 84 88;
+    --c-tint: 10 132 255;
+    --c-tint-dark: 54 156 255;
+    --c-tint-light: 79 169 255;
+    --c-red: 255 69 58;
+    --c-green: 48 209 88;
+    --c-orange: 255 159 10;
+    --nav-blur: 30 30 32;
+    --nav-blur-alpha: 0.8;
+    /* 发丝线在深浅色下都是 0.5px，这里显式写上，保持两套令牌对称 */
+    --hairline: 0.5px;
 }
 
 @layer base {

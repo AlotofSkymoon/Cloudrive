@@ -12,6 +12,37 @@ export const logoSetting = ref<LogoSetting>('color');
 export const prefersDark = ref(false);
 
 /* ============================================================
+   外观模式：跟随系统 / 浅色 / 深色
+   —— 用户可以在设置页手动锁定白天或夜间，不用改系统设置。
+   ============================================================ */
+export type AppearanceSetting = 'auto' | 'light' | 'dark';
+
+/** localStorage 的键：首屏同步读取，避免深色用户看到一帧白闪 */
+export const APPEARANCE_KEY = 'cloudrive-appearance';
+
+export const APPEARANCE_LABELS: Record<AppearanceSetting, string> = {
+  auto: '跟随系统',
+  light: '浅色',
+  dark: '深色',
+};
+
+/** 用户在设置里选的外观模式 */
+export const appearanceSetting = ref<AppearanceSetting>('auto');
+
+export function normalizeAppearance(v: unknown): AppearanceSetting {
+  const s = String(v ?? '').trim();
+  return s === 'light' || s === 'dark' || s === 'auto' ? s : 'auto';
+}
+
+/** 最终是否用深色：手动优先，auto 时看系统 */
+export const isDark = computed(() => {
+  const a = appearanceSetting.value;
+  if (a === 'dark') return true;
+  if (a === 'light') return false;
+  return prefersDark.value;
+});
+
+/* ============================================================
    主题色（tint）：影响整个界面的主色
    —— 按钮、导航选中项、进度条、链接、开关、焦点边框……
    不只是品牌图标，图标配色是另一项独立设置。
@@ -63,7 +94,7 @@ function applyTint() {
   if (typeof document === 'undefined') return;
   const t = TINTS[tintSetting.value] || TINTS.blue;
   const root = document.documentElement;
-  if (prefersDark.value) {
+  if (isDark.value) {
     root.style.setProperty('--c-tint', t.darkBase);
     root.style.setProperty('--c-tint-dark', t.darkHover);
     root.style.setProperty('--c-tint-light', t.darkBase);
@@ -72,6 +103,32 @@ function applyTint() {
     root.style.setProperty('--c-tint-dark', t.hover);
     root.style.setProperty('--c-tint-light', t.base);
   }
+}
+
+/**
+ * 把外观模式写到 <html data-theme>。
+ * auto 时移除属性，让 CSS 的 prefers-color-scheme 生效；
+ * light / dark 时显式锁定，覆盖系统设置。
+ */
+export function applyAppearance() {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const a = appearanceSetting.value;
+  if (a === 'auto') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', a);
+  // 存一份，供下次首屏同步读取（防白闪）
+  try {
+    localStorage.setItem(APPEARANCE_KEY, a);
+  } catch {
+    /* 隐私模式下 localStorage 不可用，忽略即可 */
+  }
+}
+
+/** 改外观模式时立刻生效（存库前就能看到） */
+export function setAppearance(v: string) {
+  appearanceSetting.value = normalizeAppearance(v);
+  applyAppearance();
+  applyTint();
 }
 
 let inited = false;
@@ -90,17 +147,34 @@ export function watchColorScheme() {
 /** 启动拉一次配置。未登录 / 请求失败都静默回落默认值。 */
 export async function loadAppearance() {
   watchColorScheme();
-  // 主题色与系统深浅都变化时重新应用
-  watch([tintSetting, prefersDark], applyTint, { immediate: true });
+  // 首屏先用 localStorage 里存的值，避免配置请求回来前的白闪
+  try {
+    const saved = localStorage.getItem(APPEARANCE_KEY);
+    if (saved === 'light' || saved === 'dark' || saved === 'auto') appearanceSetting.value = saved;
+  } catch {
+    /* 读不到就用默认 auto */
+  }
+  applyAppearance();
+  // 主题色与深浅模式任一变化时重新应用
+  watch([tintSetting, isDark], applyTint, { immediate: true });
+  watch(appearanceSetting, applyAppearance);
   if (inited) return;
   inited = true;
   try {
-    const d = await api.get<{ config?: { logoVariant?: string; tint?: string } }>('/api/config');
+    const d = await api.get<{
+      config?: { logoVariant?: string; tint?: string; appearance?: string };
+    }>('/api/config');
     const v = d?.config?.logoVariant;
     if (v === 'color' || v === 'black' || v === 'white' || v === 'auto') logoSetting.value = v;
     tintSetting.value = normalizeTint(d?.config?.tint);
+    // 库里存了就用库里的（服务端配置优先于本地缓存）
+    const a = normalizeAppearance(d?.config?.appearance);
+    if (d?.config?.appearance) {
+      appearanceSetting.value = a;
+      applyAppearance();
+    }
   } catch {
-    /* 登录页等未登录场景拿不到配置，用默认蓝色即可 */
+    /* 登录页等未登录场景拿不到配置，用默认即可 */
   }
   applyTint();
 }

@@ -139,6 +139,8 @@ export interface Cfg {
   logoVariant?: string;
   /** 主题色（整个界面的主色），见 web/src/theme.ts 的 TINTS */
   tint?: string;
+  /** 外观模式：auto / light / dark */
+  appearance?: string;
 }
 
 /** 每个配置项的来源，用于在设置页标注 */

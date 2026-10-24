@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { renderLogo } from './logo.js';
 
-export const VERSION = '2.1.0';
+export const VERSION = '2.2.0';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -39,8 +39,9 @@ function notBuiltHtml(): string {
 <title>前端资源未构建 · Cloudrive</title>
 <style>
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:#F7F9FC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1A1C1E}
-.c{max-width:520px;padding:32px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
+background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#000}
+.c{max-width:520px;padding:32px;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+@media (prefers-color-scheme: dark){body{background:#000;color:#fff}.c{background:#1C1C1E}}
 h1{margin:0 0 12px;font-size:18px;font-weight:500}
 p{margin:0 0 10px;font-size:14px;line-height:1.6;color:#44484D}
 code{font-family:ui-monospace,SF Mono,Menlo,Consolas,monospace;background:#F2F5F8;
@@ -70,7 +71,8 @@ export function spaHtml(o: SpaOptions): string {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <title>${esc(title)}</title>
-<style>${APP_CSS}</style></head>
+<style>${APP_CSS}</style>
+<script>!function(){try{var e=localStorage.getItem('cloudrive-appearance');if(e==='light'||e==='dark')document.documentElement.setAttribute('data-theme',e)}catch(t){}}();</script></head>
 <body>
 <div id="app"></div>
 <script>window.__CLOUDRIVE__=${boot};</script>

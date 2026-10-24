@@ -97,6 +97,8 @@ export interface Config {
   logoVariant: string;
   /** 主题色（整个界面的主色） */
   tint: string;
+  /** 外观模式：auto / light / dark */
+  appearance: string;
 }
 
 export interface StatusProbe {

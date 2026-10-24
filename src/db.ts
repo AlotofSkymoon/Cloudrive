@@ -84,6 +84,7 @@ export const SEED_DEFAULTS = {
   // 品牌图标配色：color（彩色）/ black（黑）/ white（白）/ auto（跟随系统深浅）
   LOGO_VARIANT: 'color',
   TINT: 'blue',
+  APPEARANCE: 'auto',
 };
 
 // 只补缺失的键，已有的（用户改过的）一律不动
@@ -177,6 +178,12 @@ export async function configSources(env) {
 /** 可选的主题色（与前端 web/src/theme.ts 的 TINTS 保持一致） */
 const TINT_NAMES_BACKEND = ['blue', 'purple', 'pink', 'red', 'orange', 'green', 'indigo', 'graphite'];
 
+/** 外观模式：跟随系统 / 浅色 / 深色。非法值回落 auto */
+export function normalizeAppearance(v) {
+  const s = String(v == null ? '' : v).trim();
+  return s === 'light' || s === 'dark' ? s : 'auto';
+}
+
 /** 主题色：非法值回落蓝色，避免写坏 CSS 变量导致整站配色异常 */
 export function normalizeTint(v) {
   const s = String(v == null ? '' : v).trim();
@@ -215,6 +222,7 @@ export async function config(env) {
     storageQuotaGb: Number(pick('STORAGE_QUOTA_GB', '10')) || 0,
     logoVariant: normalizeLogoVariant(pick('LOGO_VARIANT', 'color')),
     tint: normalizeTint(pick('TINT', 'blue')),
+    appearance: normalizeAppearance(pick('APPEARANCE', 'auto')),
   };
 }
 

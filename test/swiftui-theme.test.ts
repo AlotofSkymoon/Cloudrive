@@ -12,18 +12,30 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 const CSS = read('web/src/style.css');
 const TW = read('tailwind.config.js');
 
-/** 取出每个 :root 块里定义的变量名 */
-function tokenSets(): Set<string>[] {
-  const blocks = [...CSS.matchAll(/:root\s*\{([^}]*)\}/g)].map((m) => m[1]);
-  return blocks.map((b) => new Set([...b.matchAll(/--([a-z0-9-]+):/g)].map((m) => m[1])));
+/** 浅色令牌（第一个 :root 块） */
+function lightTokens(): string[] {
+  const b = /\n:root \{([\s\S]*?)\n\}/.exec(CSS);
+  assert.ok(b, '缺浅色 :root 块');
+  return [...b[1].matchAll(/--([a-z0-9-]+):/g)].map((m) => m[1]);
 }
 
-test('有浅色和深色两套设计令牌，且变量名完全对称', () => {
-  const sets = tokenSets();
-  assert.equal(sets.length, 2, `应该有 2 个 :root 块，实际 ${sets.length} 个`);
-  // 深色块漏定义某个变量时，它会静默继承浅色的值——不是报错，是配色错乱
-  const diff = [...sets[0]].filter((x) => !sets[1].has(x)).concat([...sets[1]].filter((x) => !sets[0].has(x)));
-  assert.deepEqual(diff, [], `两套令牌不一致：${diff.join(', ')}`);
+/** 深色令牌在 CSS 里出现两次：media 内一份、[data-theme='dark'] 一份 */
+function darkBlocks(): string[] {
+  const media = /@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\[data-theme='light'\]\) \{([\s\S]*?)\n  \}\n\}/.exec(CSS);
+  const attr = /:root\[data-theme='dark'\] \{([\s\S]*?)\n\}/.exec(CSS);
+  assert.ok(media, '缺跟随系统的深色块');
+  assert.ok(attr, `缺 [data-theme='dark'] 深色块`);
+  return [media[1], attr[1]];
+}
+
+test('浅色与深色两套令牌的变量名完全对称', () => {
+  const light = new Set(lightTokens());
+  for (const [i, block] of darkBlocks().entries()) {
+    const dark = new Set([...block.matchAll(/--([a-z0-9-]+):/g)].map((m) => m[1]));
+    // 深色漏定义某个变量时会静默继承浅色值——不报错，只是配色错乱
+    const missing = [...light].filter((x) => !dark.has(x));
+    assert.deepEqual(missing, [], `第 ${i + 1} 份深色块缺少：${missing.join(', ')}`);
+  }
 });
 
 test('所有被引用的 CSS 变量都有定义', () => {
@@ -35,7 +47,7 @@ test('所有被引用的 CSS 变量都有定义', () => {
   ]);
   // 'x' 来自注释里的写法示例 rgb(var(--x) / <alpha-value>)，不是真引用
   used.delete('x');
-  const defined = tokenSets()[0]!;
+  const defined = new Set(lightTokens());
   const missing = [...used].filter((v) => !defined.has(v));
   assert.deepEqual(missing, [], `引用了未定义的变量：${missing.join(', ')}`);
 });
