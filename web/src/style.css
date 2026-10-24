@@ -7,87 +7,193 @@
   body {
     margin: 0;
     padding: 0;
+    height: 100%;
   }
   body {
-    @apply bg-paper text-ink;
-    font-family:
-      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', 'Hiragino Sans GB',
-      'Microsoft YaHei', sans-serif;
-    font-size: 13.5px;
+    @apply bg-canvas text-ink;
+    font-family: theme('fontFamily.sans');
+    font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: #d9e4dd;
+    background: #bbdefb;
+  }
+  /* 滚动条也做成轻度 Material 感 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cfcfcf;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b0;
   }
 }
 
 @layer components {
-  /* 纸质米白体系下的通用控件 */
+  /* ---------- 按钮：Material raised / text / outlined ---------- */
   .btn {
-    @apply inline-flex items-center gap-1.5 h-[29px] px-[11px] border border-rule rounded-sm text-[12.5px] text-ink/80 bg-surface whitespace-nowrap;
+    @apply inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded text-sm font-medium whitespace-nowrap transition-shadow;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
-  .btn:hover {
-    @apply border-faint bg-white;
+  .btn:active {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
   }
-  .btn-solid {
-    @apply bg-ink border-ink text-[#fbfaf7];
+  /* 主按钮：实心蓝 */
+  .btn-primary {
+    @apply bg-primary text-white;
   }
-  .btn-solid:hover {
-    @apply bg-black border-black;
+  .btn-primary:hover {
+    @apply bg-primary-dark;
   }
-  .btn-sm {
-    @apply h-[25px] text-xs px-[9px];
+  /* 次按钮：白底描边 */
+  .btn-plain {
+    @apply bg-surface border border-rule text-ink/85;
+  }
+  .btn-plain:hover {
+    @apply bg-[#f2f2f2];
+  }
+  /* 文字按钮 */
+  .btn-text {
+    @apply bg-transparent text-primary shadow-none px-3;
+  }
+  .btn-text:hover {
+    @apply bg-primary-soft;
   }
   .btn-danger {
-    @apply text-danger border-[#e3cfc9];
+    @apply bg-transparent text-danger shadow-none px-3;
   }
   .btn-danger:hover {
-    @apply bg-[#fbf1ee] border-[#d6b3ab];
+    @apply bg-dangerSoft;
+  }
+  /* 兼容旧写法 */
+  .btn-solid {
+    @apply bg-primary text-white shadow;
+  }
+  .btn-solid:hover {
+    @apply bg-primary-dark;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-[13px];
+  }
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 
+  /* ---------- 卡片 ---------- */
+  .card {
+    @apply bg-surface rounded border border-rule;
+    box-shadow: theme('boxShadow.card');
+  }
+
+  /* ---------- 表单 ---------- */
   .field {
-    @apply flex items-center gap-3.5 py-[11px] border-b border-[#e8e3d8];
+    @apply flex items-center gap-4 py-3 border-b border-rule;
   }
   .field-label {
-    @apply w-[170px] flex-none text-[12.5px] text-ink/80;
+    @apply w-[180px] flex-none text-sm text-ink/85;
   }
   .field-desc {
-    @apply text-[11px] text-faint mt-[2px];
+    @apply text-xs text-faint mt-0.5;
   }
   .input {
-    @apply flex-1 min-w-0 border border-rule rounded-sm bg-surface px-2 py-[5px] text-[12.5px] outline-none;
+    @apply flex-1 min-w-0 border border-rule rounded bg-surface px-3 py-2 text-sm outline-none transition-colors;
   }
   .input:focus {
-    @apply border-accent;
+    @apply border-primary;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.14);
   }
   .unit {
-    @apply font-mono text-[10px] text-faint whitespace-nowrap;
+    @apply text-xs text-faint whitespace-nowrap;
   }
 
+  /* ---------- 文本 ---------- */
   .num {
-    @apply font-mono text-[11.5px] text-ink/80 tabular-nums;
+    @apply font-mono text-[13px] text-ink/80 tabular-nums;
   }
   .time {
-    @apply font-mono text-[11px] text-muted tabular-nums whitespace-nowrap;
+    @apply font-mono text-xs text-muted tabular-nums whitespace-nowrap;
   }
   .mono {
-    @apply font-mono text-[11px] text-muted tracking-wide;
+    @apply font-mono text-xs text-muted;
   }
-  .ext {
-    @apply font-mono text-[8.5px] tracking-wide text-muted border border-rule px-0 py-[2px] w-[30px] text-center flex-none bg-surface;
-  }
-
   .sec-title {
-    @apply font-mono text-[9.5px] tracking-[0.1em] text-faint;
+    @apply text-xs font-medium uppercase tracking-wide text-faint;
   }
   .src {
-    @apply font-mono text-[9px] tracking-wide text-faint border border-[#e8e3d8] px-1 ml-1.5 whitespace-nowrap;
+    @apply text-[10px] text-primary bg-primary-soft rounded px-1.5 py-0.5 ml-2 whitespace-nowrap;
   }
-  .linkbtn {
-    @apply text-xs text-muted underline decoration-rule underline-offset-2;
+
+  /* 网格视图里的文件类型角标 */
+  .ext {
+    @apply font-mono text-[9px] font-medium tracking-wide text-muted border border-rule rounded px-1 py-0.5 flex-none bg-soft uppercase;
   }
-  .linkbtn:hover {
-    @apply text-ink;
+
+  /* ---------- 侧边栏菜单项（Cloudreve 式） ---------- */
+  .nav-item {
+    @apply flex items-center gap-3 h-10 px-3 rounded text-sm text-ink/80 transition-colors cursor-pointer select-none;
+  }
+  .nav-item:hover {
+    @apply bg-[#f0f0f0];
+  }
+  .nav-item-active {
+    @apply bg-primary-soft text-primary font-medium;
+  }
+  .nav-icon {
+    @apply w-5 h-5 flex-none text-muted;
+  }
+  .nav-item-active .nav-icon {
+    @apply text-primary;
+  }
+  .nav-badge {
+    @apply ml-auto text-xs text-faint font-mono;
+  }
+
+  /* ---------- 表格 ---------- */
+  table {
+    @apply w-full border-collapse;
+  }
+  thead th {
+    @apply text-left text-xs font-medium uppercase tracking-wide text-muted border-b border-rule pb-2 pt-2 px-2;
+  }
+  tbody td {
+    @apply py-2.5 px-2 border-b border-[#f0f0f0] text-sm;
+  }
+  tbody tr:hover {
+    @apply bg-soft;
+  }
+
+  /* ---------- 提示条 ---------- */
+  .alert {
+    @apply rounded px-3 py-2.5 text-[13px] leading-relaxed border;
+  }
+  .alert-info {
+    @apply bg-primary-soft border-[#bbdefb] text-[#0d47a1];
+  }
+  .alert-warn {
+    @apply bg-[#fff8e1] border-[#ffe082] text-[#8d6e00];
+  }
+  .alert-error {
+    @apply bg-dangerSoft border-[#ffcdd2] text-[#b71c1c];
+  }
+
+  /* 开关（设置页） */
+  .switch {
+    @apply w-9 h-5 rounded-full border border-faint relative flex-none cursor-pointer transition-colors;
+  }
+  .switch-on {
+    @apply bg-primary border-primary;
+  }
+  .switch-dot {
+    @apply absolute top-[3px] w-3.5 h-3.5 rounded-full bg-faint transition-all;
+  }
+  .switch-on .switch-dot {
+    @apply left-[18px] bg-white;
+  }
+  .switch-off .switch-dot {
+    @apply left-[3px];
   }
 }

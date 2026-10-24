@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { LOGO_SVG } from './logo.js';
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 

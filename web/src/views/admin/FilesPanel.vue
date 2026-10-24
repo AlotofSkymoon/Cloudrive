@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { inject, onMounted, ref } from 'vue';
 import { api, copyText, fileExt, fmtBytes, fmtShort, isImage, type FileItem } from '../../api';
 
 const emit = defineEmits<{ changed: [] }>();
@@ -14,6 +14,9 @@ const uploading = ref<{ name: string; pct: number }[]>([]);
 const showUploader = ref(false);
 const picker = ref<HTMLInputElement | null>(null);
 const dropOn = ref(false);
+// Cloudreve 支持列表 / 网格两种视图，默认网格
+const view = ref<'grid' | 'list'>('grid');
+const searchFocus = ref(false);
 
 async function load(reset = true, retry = false) {
   if (reset) offset.value = 0;
@@ -25,7 +28,7 @@ async function load(reset = true, retry = false) {
     if (offset.value) u += '&offset=' + offset.value;
     const d = await api.get<{ files: FileItem[]; next: number }>(u);
     if (!d) {
-      // D1 冷启动偶尔会慢一下，先自动重试一次再报错
+      // D1 冷启动偶尔慢一下，先自动重试再报错
       if (!retry) {
         await new Promise((r) => setTimeout(r, 600));
         return load(reset, true);
@@ -57,10 +60,7 @@ async function syncBucket() {
   }
 }
 
-const selectedCount = computedCount();
-function computedCount() {
-  return () => Object.values(sel.value).filter(Boolean).length;
-}
+const selectedCount = () => Object.values(sel.value).filter(Boolean).length;
 
 async function delFile(id: string) {
   if (!confirm('删除该文件？存储对象也会一并删除')) return;
@@ -70,7 +70,6 @@ async function delFile(id: string) {
     emit('changed');
   }
 }
-
 async function delSelected() {
   const ids = files.value.filter((_, i) => sel.value[i]).map((f) => f.id);
   if (!ids.length) return;
@@ -81,7 +80,6 @@ async function delSelected() {
     emit('changed');
   }
 }
-
 async function copyLink(f: FileItem) {
   const d = await api.get<{ url: string | null; reason?: string }>(`/api/files/${f.id}/link`);
   if (!d) return;
@@ -96,12 +94,15 @@ async function copyLink(f: FileItem) {
 function pick() {
   picker.value?.click();
 }
+// 侧边栏「+ 新建」通过这里唤起
+const registerPicker = inject<(fn: () => void) => void>('registerPicker', () => {});
+onMounted(() => registerPicker(pick));
+
 function onPick(e: Event) {
   const input = e.target as HTMLInputElement;
   if (input.files) queue(Array.from(input.files));
   input.value = '';
 }
-
 function onDrop(e: DragEvent) {
   dropOn.value = false;
   if (e.dataTransfer?.files) queue(Array.from(e.dataTransfer.files));
@@ -194,7 +195,6 @@ function openShare(i: number) {
   shareMax.value = '0';
   shareLink.value = '';
 }
-
 async function createShare() {
   const i = shareIdx.value;
   if (i == null) return;
@@ -207,7 +207,6 @@ async function createShare() {
   });
   if (d) shareLink.value = d.url;
 }
-
 async function copyDirect(code: string) {
   const d = await api.get<{ url: string }>(`/direct/${code}`);
   if (d?.url) await copyText(d.url);
@@ -231,143 +230,228 @@ function thumbFail(el: Event) {
 const lightbox = ref<string | null>(null);
 
 onMounted(() => load(true));
-defineExpose({ reload: () => load(true) });
 </script>
 
 <template>
   <section>
-    <div class="flex items-center gap-2.5 py-2.5 border-b border-[#e8e3d8]">
-      <div class="flex items-center gap-[7px] flex-1 max-w-[340px] border-b border-rule pb-1">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" class="text-faint flex-none">
-          <circle cx="7" cy="7" r="4.5" />
-          <path d="M10.5 10.5 14 14" />
+    <!-- 工具栏：搜索 + 视图切换 -->
+    <div class="flex items-center gap-3 mb-3 flex-wrap">
+      <div
+        class="flex items-center gap-2 h-9 px-3 rounded border bg-surface flex-1 min-w-[180px] max-w-[320px] transition-colors"
+        :class="searchFocus ? 'border-primary' : 'border-rule'"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-faint flex-none">
+          <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z" />
         </svg>
-        <input v-model="q" placeholder="搜索文件名" class="border-0 outline-none bg-transparent w-full text-[12.5px]" @input="onSearch" />
+        <input
+          v-model="q"
+          placeholder="搜索文件"
+          class="border-0 outline-none bg-transparent w-full text-sm"
+          @input="onSearch"
+          @focus="searchFocus = true"
+          @blur="searchFocus = false"
+        />
       </div>
+
       <span class="flex-1"></span>
-      <span class="font-mono text-[10.5px] text-muted tracking-[0.03em]">
-        {{ selectedCount() ? '已选 ' + selectedCount() + ' 项' : '按时间排序 · 降序' }}
-      </span>
-      <button v-if="selectedCount()" class="btn btn-sm btn-danger" @click="delSelected">删除所选</button>
+
+      <div class="flex items-center gap-1 bg-soft rounded border border-rule p-0.5">
+        <button
+          class="w-8 h-7 flex items-center justify-center rounded"
+          :class="view === 'grid' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink'"
+          title="网格视图"
+          @click="view = 'grid'"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z" /></svg>
+        </button>
+        <button
+          class="w-8 h-7 flex items-center justify-center rounded"
+          :class="view === 'list' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink'"
+          title="列表视图"
+          @click="view = 'list'"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v2H3V5Zm0 6h2v2H3v-2Zm0 6h2v2H3v-2Zm4-12h14v2H7V5Zm0 6h14v2H7v-2Zm0 6h14v2H7v-2Z" /></svg>
+        </button>
+      </div>
+
+      <button class="btn btn-plain btn-sm" @click="syncBucket">同步桶内</button>
+      <button v-if="selectedCount()" class="btn btn-danger btn-sm" @click="delSelected">删除 ({{ selectedCount() }})</button>
     </div>
 
+    <!-- 上传区（Cloudreve 式拖拽区） -->
     <div
-      class="mt-3 border border-dashed border-rule rounded-sm px-[14px] py-[13px] flex items-center gap-2.5 cursor-pointer text-[12.5px] text-muted hover:border-faint hover:bg-ink/[0.018]"
-      :class="dropOn ? 'border-accent bg-accent/[0.05] text-accent' : ''"
+      class="rounded-lg border-2 border-dashed px-4 py-6 flex flex-col items-center justify-center gap-1.5 cursor-pointer text-sm text-muted transition-colors mb-3"
+      :class="dropOn ? 'border-primary bg-primary-soft text-primary' : 'border-rule hover:border-faint hover:bg-soft'"
       @click="pick"
       @dragenter.prevent="dropOn = true"
       @dragover.prevent="dropOn = true"
       @dragleave.prevent="dropOn = false"
       @drop.prevent="onDrop"
     >
-      <span class="font-mono text-[13px] text-faint w-3" :class="dropOn ? 'text-accent' : ''">+</span>
-      <span>拖入文件，或点击选择</span>
-      <span class="ml-auto font-mono text-[10px] text-faint tracking-[0.02em] max-[860px]:hidden">
-        单文件 ≤ 100 GB · 超过 100 MB 自动分片 · 支持多选
-      </span>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="opacity-40">
+        <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96ZM14 13v4h-4v-4H7l5-5 5 5h-3Z" />
+      </svg>
+      <span>拖拽文件至此，或<span class="text-primary">点击上传</span></span>
+      <span class="text-xs text-faint">超过 100 MB 自动分片 · 支持多选</span>
     </div>
     <input ref="picker" type="file" multiple hidden @change="onPick" />
 
-    <div v-if="loadErr" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs mt-3 flex items-center gap-3">
+    <div v-if="loadErr" class="alert alert-error mb-3 flex items-center gap-3">
       {{ loadErr }}
-      <button class="btn btn-sm ml-auto" @click="load(true)">重试</button>
+      <button class="btn btn-plain btn-sm ml-auto" @click="load(true)">重试</button>
+    </div>
+    <div v-else-if="loading && !files.length" class="py-12 text-center text-faint text-sm">加载中…</div>
+
+    <!-- 空状态 -->
+    <div v-else-if="!files.length" class="py-12 text-center">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="text-rule mx-auto mb-2">
+        <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2Z" />
+      </svg>
+      <div class="text-sm text-faint">还没有文件，把文件拖到上面即可上传</div>
     </div>
 
-    <div v-else-if="loading && !files.length" class="py-10 text-faint text-[12.5px]">加载中…</div>
+    <!-- 网格视图 -->
+    <div
+      v-else-if="view === 'grid'"
+      class="grid gap-3"
+      style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))"
+    >
+      <div
+        v-for="(f, i) in files"
+        :key="f.id"
+        class="card p-2 cursor-pointer relative group transition-shadow hover:shadow-raised"
+        @click.self="sel[i] = !sel[i]"
+      >
+        <!-- 多选 -->
+        <span
+          class="absolute top-2 left-2 w-5 h-5 rounded border-2 border-white flex items-center justify-center z-10 shadow"
+          :class="sel[i] ? 'bg-primary border-primary' : 'bg-black/20 border-white'"
+          @click.stop="sel[i] = !sel[i]"
+        >
+          <svg v-if="sel[i]" width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z" /></svg>
+        </span>
 
-    <div v-else-if="!files.length" class="py-10 text-faint text-[12.5px]">还没有文件，把文件拖到上面即可上传</div>
+        <!-- 缩略图 -->
+        <div class="aspect-square bg-canvas rounded flex items-center justify-center overflow-hidden mb-2">
+          <img
+            v-if="isImage(f)"
+            class="w-full h-full object-cover cursor-zoom-in"
+            :src="`/preview/${f.id}`"
+            :data-id="f.id"
+            loading="lazy"
+            alt=""
+            @error="thumbFail"
+            @click.stop="lightbox = f.id"
+          />
+          <span v-else class="text-2xl font-mono font-medium text-faint uppercase">{{ fileExt(f.name) }}</span>
+        </div>
 
-    <table v-else class="w-full border-collapse mt-0.5">
-      <thead>
-        <tr>
-          <th class="w-[26px]"></th>
-          <th class="w-[34px]">类型</th>
-          <th>文件名</th>
-          <th class="text-right w-[84px]">大小</th>
-          <th class="text-right w-[132px]">上传时间</th>
-          <th class="text-right w-[126px]">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(f, i) in files" :key="f.id" class="hover:bg-[#efede4]">
-          <td>
-            <span
-              class="w-[13px] h-[13px] border border-faint rounded-[1px] inline-block relative align-[-2px] cursor-pointer"
-              :class="sel[i] ? 'bg-accent border-accent' : ''"
-              @click="sel[i] = !sel[i]"
-            ></span>
-          </td>
-          <td>
-            <img
-              v-if="isImage(f)"
-              class="thumb w-[30px] h-[30px] flex-none object-cover rounded-sm bg-[#e8e3d8] cursor-zoom-in"
-              :src="`/preview/${f.id}`"
-              :data-id="f.id"
-              loading="lazy"
-              alt=""
-              @error="thumbFail"
-              @click="lightbox = f.id"
-            />
-            <span v-else class="ext">{{ fileExt(f.name) }}</span>
-          </td>
-          <td>
-            <div class="flex items-center gap-2.5 min-w-0">
-              <b class="font-normal truncate" :title="f.name">{{ f.name }}</b>
-              <span class="hidden font-mono text-[9.5px] text-faint ml-auto whitespace-nowrap pl-2 max-[860px]:flex">
-                <span>{{ fmtBytes(f.size) }}</span>
+        <div class="px-1 pb-1">
+          <div class="text-[13px] truncate font-medium" :title="f.name">{{ f.name }}</div>
+          <div class="text-xs text-faint mt-0.5">{{ fmtBytes(f.size) }}</div>
+        </div>
+
+        <!-- 悬浮操作 -->
+        <div class="flex items-center gap-1 px-1 pb-1">
+          <button class="btn-text !px-1.5 !h-7 !text-xs flex-1" @click.stop="openShare(i)">分享</button>
+          <button class="btn-text !px-1.5 !h-7 !text-xs flex-1" @click.stop="copyLink(f)">直链</button>
+          <button class="btn-danger !px-1.5 !h-7 !text-xs flex-1" @click.stop="delFile(f.id)">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 列表视图 -->
+    <div v-else class="card overflow-hidden">
+      <table>
+        <thead>
+          <tr>
+            <th class="w-10"></th>
+            <th class="w-12"></th>
+            <th>文件名</th>
+            <th class="text-right w-24">大小</th>
+            <th class="text-right w-36">上传时间</th>
+            <th class="text-right w-32">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(f, i) in files" :key="f.id">
+            <td>
+              <span
+                class="w-4 h-4 border-2 border-faint rounded inline-flex items-center justify-center align-middle cursor-pointer"
+                :class="sel[i] ? 'bg-primary border-primary' : ''"
+                @click="sel[i] = !sel[i]"
+              >
+                <svg v-if="sel[i]" width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z" /></svg>
               </span>
-            </div>
-          </td>
-          <td class="text-right"><span class="num">{{ fmtBytes(f.size) }}</span></td>
-          <td class="text-right"><span class="time">{{ fmtShort(f.uploaded_at) }}</span></td>
-          <td>
-            <div class="flex items-center justify-end text-[11.5px] whitespace-nowrap">
-              <button class="text-muted hover:text-ink hover:underline underline-offset-2" @click="openShare(i)">分享</button>
-              <span class="text-rule px-[7px] select-none">·</span>
-              <button class="text-muted hover:text-ink hover:underline underline-offset-2" @click="copyLink(f)">直链</button>
-              <span class="text-rule px-[7px] select-none">·</span>
-              <button class="text-muted hover:text-danger hover:underline underline-offset-2" @click="delFile(f.id)">删除</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            </td>
+            <td>
+              <img
+                v-if="isImage(f)"
+                class="w-8 h-8 rounded object-cover cursor-zoom-in"
+                :src="`/preview/${f.id}`"
+                :data-id="f.id"
+                loading="lazy"
+                alt=""
+                @error="thumbFail"
+                @click="lightbox = f.id"
+              />
+              <span v-else class="ext">{{ fileExt(f.name) }}</span>
+            </td>
+            <td><div class="truncate max-w-[280px]" :title="f.name">{{ f.name }}</div></td>
+            <td class="text-right"><span class="num">{{ fmtBytes(f.size) }}</span></td>
+            <td class="text-right"><span class="time">{{ fmtShort(f.uploaded_at) }}</span></td>
+            <td>
+              <div class="flex items-center justify-end gap-0.5">
+                <button class="btn-text !px-2 !h-7 !text-xs" @click="openShare(i)">分享</button>
+                <button class="btn-text !px-2 !h-7 !text-xs" @click="copyLink(f)">直链</button>
+                <button class="btn-danger !px-2 !h-7 !text-xs" @click="delFile(f.id)">删除</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <div v-if="offset" class="mt-3"><button class="btn btn-sm" @click="load(false)">加载更多</button></div>
+    <div v-if="offset" class="mt-4 text-center"><button class="btn btn-plain btn-sm" @click="load(false)">加载更多</button></div>
 
     <!-- 上传队列 -->
-    <div v-if="showUploader" class="fixed right-4 bottom-[46px] w-[320px] bg-surface border border-ink z-50 max-[860px]:left-3 max-[860px]:right-3 max-[860px]:w-auto">
-      <div class="flex items-center gap-2 px-3 py-[9px] border-b border-rule text-xs">
-        <span>上传队列</span><span class="font-mono text-[10px]">{{ uploading.length }}</span>
+    <div v-if="showUploader" class="fixed right-5 bottom-5 w-80 bg-surface rounded-lg border border-rule shadow-dialog z-50 max-[860px]:left-3 max-[860px]:right-3 max-[860px]:w-auto">
+      <div class="flex items-center gap-2 px-4 h-11 border-b border-rule text-sm font-medium">
+        <span>上传队列</span>
+        <span class="text-xs text-faint font-mono">{{ uploading.length }}</span>
         <span class="flex-1"></span>
-        <button class="text-faint text-[11px] hover:text-ink" @click="showUploader = false">收起</button>
+        <button class="text-faint text-xs hover:text-ink" @click="showUploader = false">收起</button>
       </div>
-      <div v-for="(t, i) in uploading" :key="i" class="flex items-center gap-2.5 px-3 py-[9px] border-b border-[#e8e3d8] last:border-b-0">
-        <span class="ext">{{ fileExt(t.name) }}</span>
-        <div class="flex-1 min-w-0">
-          <b class="block font-normal text-[11.5px] truncate">{{ t.name }}</b>
-          <span class="block h-[2px] bg-rule mt-[5px] relative"><i class="absolute inset-y-0 left-0 bg-accent transition-[width]" :style="{ width: t.pct + '%' }"></i></span>
+      <div class="max-h-64 overflow-y-auto">
+        <div v-for="(t, i) in uploading" :key="i" class="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f0f0] last:border-b-0">
+          <span class="ext">{{ fileExt(t.name) }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[13px] truncate">{{ t.name }}</div>
+            <div class="h-1 bg-rule rounded-full mt-1.5 overflow-hidden">
+              <i class="block h-full bg-primary rounded-full transition-[width]" :style="{ width: t.pct + '%' }"></i>
+            </div>
+          </div>
+          <span class="text-[11px] text-faint font-mono w-10 text-right">{{ t.pct >= 100 ? '完成' : t.pct + '%' }}</span>
         </div>
-        <span class="font-mono text-[9.5px] text-faint w-9 text-right">{{ t.pct >= 100 ? '完成' : t.pct + '%' }}</span>
       </div>
     </div>
 
     <!-- 分享弹窗 -->
-    <div v-if="shareIdx !== null" class="fixed inset-0 bg-ink/25 flex items-center justify-center p-[18px] z-[60]" @click.self="shareIdx = null">
-      <div class="bg-surface border border-ink w-full max-w-[392px]">
-        <div class="px-4 pt-[14px] pb-3 border-b border-rule flex items-baseline gap-2">
-          <h3 class="text-sm font-semibold m-0">{{ shareLink ? '分享已创建' : '创建分享' }}</h3>
-          <button class="ml-auto text-faint text-[15px] leading-none hover:text-ink" @click="shareIdx = null">×</button>
+    <div v-if="shareIdx !== null" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" @click.self="shareIdx = null">
+      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-dialog">
+        <div class="px-5 h-14 flex items-center gap-2 border-b border-rule">
+          <h3 class="text-base font-medium m-0">{{ shareLink ? '分享已创建' : '创建分享' }}</h3>
+          <button class="ml-auto text-faint text-xl leading-none hover:text-ink" @click="shareIdx = null">×</button>
         </div>
 
-        <div v-if="!shareLink" class="p-4">
-          <div class="flex items-center gap-2.5 mb-[11px]">
-            <label class="w-16 flex-none text-xs text-muted">文件</label>
-            <div class="flex-1 min-w-0 truncate text-xs">{{ files[shareIdx].name }}</div>
+        <div v-if="!shareLink" class="p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <label class="w-16 flex-none text-sm text-muted">文件</label>
+            <div class="flex-1 min-w-0 truncate text-sm">{{ files[shareIdx].name }}</div>
           </div>
-          <div class="flex items-center gap-2.5 mb-[11px]">
-            <label class="w-16 flex-none text-xs text-muted">有效期</label>
-            <select v-model="shareExp" class="flex-1 min-w-0 border border-rule bg-white rounded-sm px-2 py-[5px] text-xs outline-none">
+          <div class="flex items-center gap-3 mb-3">
+            <label class="w-16 flex-none text-sm text-muted">有效期</label>
+            <select v-model="shareExp" class="input">
               <option value="0">永久</option>
               <option value="3600">1 小时</option>
               <option value="86400">1 天</option>
@@ -375,41 +459,40 @@ defineExpose({ reload: () => load(true) });
               <option value="2592000">30 天</option>
             </select>
           </div>
-          <div class="flex items-center gap-2.5 mb-[11px]">
-            <label class="w-16 flex-none text-xs text-muted">密码</label>
-            <input v-model="sharePwd" placeholder="可选" class="flex-1 min-w-0 border border-rule bg-white rounded-sm px-2 py-[5px] text-xs outline-none" />
-            <span class="unit">留空则不需要</span>
+          <div class="flex items-center gap-3 mb-3">
+            <label class="w-16 flex-none text-sm text-muted">密码</label>
+            <input v-model="sharePwd" placeholder="可选" class="input" />
           </div>
-          <div class="flex items-center gap-2.5">
-            <label class="w-16 flex-none text-xs text-muted">次数</label>
-            <input v-model="shareMax" type="number" min="0" class="flex-1 min-w-0 border border-rule bg-white rounded-sm px-2 py-[5px] text-xs outline-none" />
-            <span class="unit">次 · 0 不限</span>
-          </div>
-        </div>
-
-        <div v-else class="p-4">
-          <div class="sec-title mb-1.5">链接</div>
-          <div class="flex border border-rule bg-white">
-            <input :value="shareLink" readonly class="border-0 flex-1 font-mono text-[11px] px-2 py-[7px] outline-none bg-transparent min-w-0" />
-            <button class="border-l border-rule px-[10px] text-[11.5px] text-ink/80 hover:bg-[#efede4]" @click="copyText(shareLink)">复制</button>
-          </div>
-          <div class="sec-title mt-3.5 mb-1.5">直链</div>
-          <div class="flex border border-rule bg-white">
-            <input :value="shareLink" readonly class="border-0 flex-1 font-mono text-[11px] px-2 py-[7px] outline-none bg-transparent min-w-0" />
-            <button class="border-l border-rule px-[10px] text-[11.5px] text-ink/80 hover:bg-[#efede4]" @click="copyDirect(shareLink.split('/s/')[1])">取直链</button>
+          <div class="flex items-center gap-3">
+            <label class="w-16 flex-none text-sm text-muted">次数</label>
+            <input v-model="shareMax" type="number" min="0" class="input" />
+            <span class="unit">0 为不限</span>
           </div>
         </div>
 
-        <div class="px-4 py-[11px] border-t border-rule flex justify-end gap-2 bg-[#f7f5ef]">
-          <button class="btn" @click="shareIdx = null">{{ shareLink ? '关闭' : '取消' }}</button>
-          <button v-if="!shareLink" class="btn btn-solid" @click="createShare">创建</button>
+        <div v-else class="p-5">
+          <div class="sec-title mb-1.5">分享链接</div>
+          <div class="flex rounded border border-rule overflow-hidden mb-3">
+            <input :value="shareLink" readonly class="border-0 flex-1 font-mono text-xs px-3 py-2 outline-none bg-transparent min-w-0" />
+            <button class="border-l border-rule px-3 text-xs text-primary hover:bg-primary-soft" @click="copyText(shareLink)">复制</button>
+          </div>
+          <div class="sec-title mb-1.5">直链</div>
+          <div class="flex rounded border border-rule overflow-hidden">
+            <input :value="shareLink" readonly class="border-0 flex-1 font-mono text-xs px-3 py-2 outline-none bg-transparent min-w-0" />
+            <button class="border-l border-rule px-3 text-xs text-primary hover:bg-primary-soft" @click="copyDirect(shareLink.split('/s/')[1])">取直链</button>
+          </div>
+        </div>
+
+        <div class="px-5 h-14 border-t border-rule flex items-center justify-end gap-2 bg-soft rounded-b-lg">
+          <button class="btn btn-plain" @click="shareIdx = null">{{ shareLink ? '关闭' : '取消' }}</button>
+          <button v-if="!shareLink" class="btn btn-primary" @click="createShare">创建</button>
         </div>
       </div>
     </div>
 
     <!-- 灯箱 -->
-    <div v-if="lightbox" class="fixed inset-0 bg-ink/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = null">
-      <img :src="`/preview/${lightbox}`" class="max-w-full max-h-full" alt="" />
+    <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = null">
+      <img :src="`/preview/${lightbox}`" class="max-w-full max-h-full rounded" alt="" />
     </div>
   </section>
 </template>

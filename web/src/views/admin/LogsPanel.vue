@@ -40,47 +40,47 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="flex items-center gap-2.5 py-2.5 border-b border-[#e8e3d8]">
-      <div class="flex items-center gap-[7px] flex-1 max-w-[340px] border-b border-rule pb-1">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" class="text-faint flex-none">
-          <circle cx="7" cy="7" r="4.5" />
-          <path d="M10.5 10.5 14 14" />
+    <div class="flex items-center gap-3 mb-3">
+      <div class="flex items-center gap-2 h-9 px-3 rounded border border-rule bg-surface flex-1 max-w-[320px]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-faint flex-none">
+          <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z" />
         </svg>
-        <input v-model="q" placeholder="按 IP 或文件名筛选" class="border-0 outline-none bg-transparent w-full text-[12.5px]" />
+        <input v-model="q" placeholder="按 IP 或文件名筛选" class="border-0 outline-none bg-transparent w-full text-sm" />
       </div>
       <span class="flex-1"></span>
-      <span class="font-mono text-[10.5px] text-muted tracking-[0.03em]">最近 {{ filtered.length }} 条</span>
+      <span class="text-sm text-muted">最近 {{ filtered.length }} 条</span>
     </div>
 
-    <div v-if="err" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs mt-3 flex items-center gap-3">
-      {{ err }}<button class="btn btn-sm ml-auto" @click="load">重试</button>
+    <div v-if="err" class="alert alert-error flex items-center gap-3">
+      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="py-10 text-faint text-[12.5px]">加载中…</div>
-    <div v-else-if="!filtered.length" class="py-10 text-faint text-[12.5px]">暂无记录</div>
+    <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
-    <table v-else class="w-full border-collapse">
-      <thead>
-        <tr>
-          <th class="w-[140px]">时间</th>
-          <th class="w-[140px]">IP</th>
-          <th class="w-[70px]">地区</th>
-          <th>动作</th>
-          <th class="text-right w-[80px]">大小</th>
-          <th class="text-right w-[60px]">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(l, i) in filtered" :key="i" class="hover:bg-[#efede4]">
-          <td><span class="time">{{ fmtFull(l.ts) }}</span></td>
-          <td><span class="num">{{ l.ip }}</span></td>
-          <td><span class="mono">{{ l.country || '—' }}</span></td>
-          <td>{{ l.action === 'download' ? '下载' : l.action || '访问' }} · {{ l.name || l.code || '' }}</td>
-          <td class="text-right"><span class="num">{{ l.bytes ? fmtBytes(l.bytes) : '—' }}</span></td>
-          <td class="text-right">
-            <div class="flex justify-end"><button class="text-muted hover:text-danger hover:underline underline-offset-2 text-[11.5px]" @click="ban(l.ip)">封</button></div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else-if="!filtered.length" class="card py-12 text-center text-sm text-faint">暂无记录</div>
+
+    <div v-else class="card overflow-hidden">
+      <table>
+        <thead>
+          <tr>
+            <th class="w-40">时间</th>
+            <th class="w-36">IP</th>
+            <th class="w-20">地区</th>
+            <th>动作</th>
+            <th class="text-right w-24">大小</th>
+            <th class="text-right w-20">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(l, i) in filtered" :key="i">
+            <td><span class="time">{{ fmtFull(l.ts) }}</span></td>
+            <td><span class="num">{{ l.ip }}</span></td>
+            <td><span class="mono">{{ l.country || '—' }}</span></td>
+            <td class="truncate max-w-[240px]">{{ l.action === 'download' ? '下载' : l.action || '访问' }} · {{ l.name || l.code || '' }}</td>
+            <td class="text-right"><span class="num">{{ l.bytes ? fmtBytes(l.bytes) : '—' }}</span></td>
+            <td class="text-right"><button class="btn-danger btn-sm" @click="ban(l.ip)">封禁</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>

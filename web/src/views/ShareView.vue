@@ -63,10 +63,6 @@ async function start() {
   }
 }
 
-const lightbox = ref(false);
-const expireText = s.expires_at ? fmtFull(s.expires_at) : '永久';
-const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} 次` : '不限次数';
-
 /* ---------- Turnstile ---------- */
 onMounted(() => {
   if (!needTs || !sitekey) return;
@@ -87,102 +83,92 @@ onMounted(() => {
   sc.onload = render;
   document.head.appendChild(sc);
 });
+
+const lightbox = ref(false);
+const expireText = s.expires_at ? fmtFull(s.expires_at) : '永久';
+const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} 次` : '不限次数';
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <div class="flex items-center gap-2 px-6 py-5 font-mono text-[10px] text-faint tracking-wide">
-      <span class="font-serif text-[15px] text-ink font-semibold tracking-tight">Filecove</span>
-      <span>SHARE</span>
-      <span class="flex-1"></span>
-      <span>/s/{{ code }}</span>
+  <div class="min-h-screen bg-canvas flex flex-col items-center justify-center px-4 py-8">
+    <!-- 品牌 -->
+    <div class="flex items-center gap-2 mb-5">
+      <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary" fill="currentColor">
+        <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
+      </svg>
+      <span class="text-lg font-medium tracking-tight">Filecove</span>
     </div>
 
-    <div class="flex-1 flex items-start justify-center px-5 pb-[60px] pt-2">
-      <div class="w-full max-w-[520px]">
-        <div class="border border-rule bg-surface">
-          <div class="px-[18px] py-4 border-b border-[#e8e3d8] flex items-center gap-2.5">
-            <span class="ext !w-[34px] !flex-none !text-[9px] !py-[3px]">{{ fileExt(s.file_name) }}</span>
-            <div class="min-w-0">
-              <b class="block font-medium text-sm truncate">{{ s.file_name }}</b>
-              <span class="font-mono text-[9.5px] text-faint tracking-[0.03em]">{{ fmtBytes(s.file_size) }} · {{ s.file_mime || '文件' }}</span>
-            </div>
-          </div>
+    <div class="card w-full max-w-md overflow-hidden">
+      <!-- 预览 -->
+      <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule">
+        <img
+          v-if="!disabled && isImage({ name: s.file_name, mime: s.file_mime }) && !prevFailed"
+          id="pv-img"
+          :src="`/raw/${code}`"
+          class="block w-full max-h-[360px] object-contain cursor-zoom-in"
+          loading="lazy"
+          alt=""
+          @error="prevFail"
+          @click="lightbox = true"
+        />
+        <div v-else class="flex flex-col items-center gap-2 text-faint py-10">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm-1 7V3.5L18.5 9H13Z" />
+          </svg>
+          <span class="font-mono text-xs uppercase tracking-wide">{{ fileExt(s.file_name) }}</span>
+        </div>
+      </div>
 
-          <div
-            v-if="!disabled && isImage({ name: s.file_name, mime: s.file_mime }) && !prevFailed"
-            class="border-b border-[#e8e3d8] flex items-center justify-center min-h-[190px]"
-          >
-            <img
-              id="pv-img"
-              :src="`/raw/${code}`"
-              class="block w-full max-h-[340px] object-contain cursor-zoom-in"
-              loading="lazy"
-              alt=""
-              @error="prevFail"
-              @click="lightbox = true"
-            />
-          </div>
-          <div
-            v-else
-            class="border-b border-[#e8e3d8] flex items-center justify-center min-h-[190px] text-faint font-mono text-[9.5px] tracking-[0.1em]"
-            style="background-image: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(28, 27, 24, 0.045) 7px, rgba(28, 27, 24, 0.045) 8px)"
-          >
-            预览不可用 · 点击下载
-          </div>
+      <!-- 文件信息 -->
+      <div class="px-5 py-4">
+        <h2 class="text-base font-medium m-0 mb-1 break-all">{{ s.file_name }}</h2>
+        <div class="text-xs text-muted">{{ fmtBytes(s.file_size) }} · {{ s.file_mime || '文件' }}</div>
 
-          <div class="px-[18px] pt-1 pb-[14px]">
-            <div class="flex justify-between py-2 border-b border-[#e8e3d8] text-xs">
-              <span class="text-muted">分享时间</span><b class="font-mono font-normal text-[11.5px]">{{ fmtFull(s.created_at) }}</b>
-            </div>
-            <div class="flex justify-between py-2 border-b border-[#e8e3d8] text-xs">
-              <span class="text-muted">有效期</span><b class="font-mono font-normal text-[11.5px]">{{ expireText }}</b>
-            </div>
-            <div class="flex justify-between py-2 text-xs">
-              <span class="text-muted">下载次数</span><b class="font-mono font-normal text-[11.5px]">{{ limitText }}</b>
-            </div>
+        <div class="mt-4 space-y-0">
+          <div class="flex justify-between py-2 border-b border-rule text-[13px]">
+            <span class="text-muted">分享时间</span><span class="font-mono text-[13px]">{{ fmtFull(s.created_at) }}</span>
           </div>
-
-          <div class="px-[18px] py-[14px] border-t border-rule bg-[#f7f5ef]">
-            <div v-if="needPwd" class="flex gap-2 mb-2.5">
-              <input
-                v-model="pwd"
-                type="password"
-                placeholder="访问密码"
-                class="flex-1 min-w-0 border border-rule bg-white rounded-sm px-[9px] py-[7px] text-[12.5px] outline-none focus:border-accent"
-              />
-            </div>
-            <div v-if="needTs" class="mb-2.5">
-              <div id="cf-ts" class="flex-1"></div>
-              <span class="font-mono text-[9.5px] text-faint">完成下面的验证后再下载</span>
-            </div>
-
-            <button
-              v-if="!disabled"
-              class="btn btn-solid w-full h-9 justify-center text-[13px] disabled:opacity-50"
-              :disabled="busy"
-              @click="start"
-            >
-              {{ busy ? '处理中…' : '下 载' }}
-            </button>
-            <button v-else class="btn w-full h-9 justify-center" disabled>
-              {{ s.banned ? 'IP 已被限制' : s.error || '不可用' }}
-            </button>
+          <div class="flex justify-between py-2 border-b border-rule text-[13px]">
+            <span class="text-muted">有效期</span><span class="font-mono text-[13px]">{{ expireText }}</span>
+          </div>
+          <div class="flex justify-between py-2 text-[13px]">
+            <span class="text-muted">下载次数</span><span class="font-mono text-[13px]">{{ limitText }}</span>
           </div>
         </div>
+      </div>
 
-        <div v-if="err" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs leading-[1.65] mt-3">
-          {{ err }}
+      <!-- 操作区 -->
+      <div class="px-5 py-4 border-t border-rule bg-soft">
+        <input
+          v-if="needPwd"
+          v-model="pwd"
+          type="password"
+          placeholder="访问密码"
+          class="input mb-3"
+          @keyup.enter="start"
+        />
+        <div v-if="needTs" class="mb-3">
+          <div id="cf-ts"></div>
         </div>
 
-        <div class="mt-3 font-mono text-[9.5px] text-faint text-center tracking-[0.03em]">
-          由 Filecove 提供 · 下载走直链 · 如遇问题请联系分享者
-        </div>
+        <button v-if="!disabled" class="btn btn-primary w-full" :disabled="busy" @click="start">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-5-5h3V4h4v7h3l-5 5Zm-7 2h14v2H5v-2Z" /></svg>
+          {{ busy ? '处理中…' : '下 载' }}
+        </button>
+        <button v-else class="btn btn-plain w-full" disabled>
+          {{ s.banned ? 'IP 已被限制' : s.error || '不可用' }}
+        </button>
       </div>
     </div>
 
-    <div v-if="lightbox" class="fixed inset-0 bg-ink/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = false">
-      <img :src="`/raw/${code}`" class="max-w-full max-h-full" alt="" />
+    <div v-if="err" class="alert alert-error mt-4 w-full max-w-md">{{ err }}</div>
+
+    <div class="mt-5 text-xs text-faint text-center">由 Filecove 提供 · 下载走直链</div>
+
+    <!-- 灯箱 -->
+    <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = false">
+      <img :src="`/raw/${code}`" class="max-w-full max-h-full rounded" alt="" />
     </div>
   </div>
 </template>

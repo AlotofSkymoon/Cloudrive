@@ -9,7 +9,6 @@ const err = ref('');
 const hint = ref('');
 const busy = ref(false);
 const status = ref<StatusProbe | null>(props.boot?.status || null);
-
 const noPassword = ref(false);
 
 async function probe() {
@@ -24,9 +23,9 @@ async function probe() {
     } else if (!d.https) {
       hint.value = '当前是 HTTP 访问，浏览器不会保存登录状态，请改用 HTTPS 打开本页。';
     } else if (d.hasEnvAdmin && d.hasDbAdmin) {
-      err.value = 'ADMIN_PASSWORD 已设置，它的优先级高于后台改过的密码，请用环境变量那个密码登录。';
+      hint.value = 'ADMIN_PASSWORD 已设置，它的优先级高于后台改过的密码，请用环境变量那个密码登录。';
     }
-    // 会话本来就有效的话，直接进后台，不用再输一次
+    // 会话本来就有效的话直接进后台
     if (d.admin) location.replace('/?_=' + Date.now());
   } catch {
     /* 探针失败不影响登录 */
@@ -65,75 +64,47 @@ onMounted(probe);
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <div class="flex items-center gap-2 px-6 py-5 font-mono text-[10px] text-faint tracking-wide">
-      <span class="font-serif text-[15px] text-ink font-semibold tracking-tight">Filecove</span>
-      <span>PRIVATE DRIVE</span>
-      <span class="flex-1"></span>
-      <span>v{{ boot.version }}</span>
+  <div class="min-h-screen bg-canvas flex flex-col items-center justify-center px-4">
+    <!-- 品牌 -->
+    <div class="flex flex-col items-center mb-6">
+      <svg width="56" height="56" viewBox="0 0 24 24" class="text-primary mb-3" fill="currentColor">
+        <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
+      </svg>
+      <h1 class="text-2xl font-medium tracking-tight m-0">Filecove</h1>
+      <p class="text-sm text-muted m-0 mt-1">私人网盘 · 直链分享</p>
     </div>
 
-    <div class="flex-1 flex items-center justify-center px-5 pb-[60px]">
-      <div class="grid grid-cols-[300px_190px] gap-[46px] items-start w-full max-w-[560px]">
-        <div class="w-full max-w-[330px]">
-          <div class="font-mono text-[9.5px] tracking-[0.12em] text-faint mb-2">RESTRICTED</div>
-          <h2 class="font-serif text-[26px] font-semibold tracking-tight m-0 mb-1.5">私人网盘</h2>
-          <p class="text-xs text-muted m-0 mb-[26px] leading-[1.7]">
-            这个站点只对管理员开放。密码来自 Worker 的 <span class="mono">ADMIN_PASSWORD</span>。
-          </p>
+    <!-- 登录卡片 -->
+    <div class="card w-full max-w-sm p-6" style="box-shadow: 0 2px 8px rgba(0,0,0,.08)">
+      <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
 
-          <div v-if="hint" class="border border-[#e0d7bd] bg-[#faf6e8] text-[#7a6320] px-3 py-2.5 text-xs leading-[1.65] mb-4">
-            {{ hint }}
-          </div>
+      <form @submit.prevent="login">
+        <label for="pwd" class="block text-xs font-medium uppercase tracking-wide text-muted mb-1.5">登录密码</label>
+        <input
+          id="pwd"
+          v-model="pwd"
+          type="password"
+          autocomplete="current-password"
+          placeholder="输入管理员密码"
+          :disabled="noPassword"
+          class="input"
+          @keyup.enter="login"
+        />
 
-          <form @submit.prevent="login">
-            <label for="pwd" class="block font-mono text-[9.5px] tracking-[0.08em] text-faint mb-1.5">登录密码</label>
-            <input
-              id="pwd"
-              v-model="pwd"
-              type="password"
-              autocomplete="current-password"
-              placeholder="••••••••••••"
-              :disabled="noPassword"
-              class="w-full border-0 border-b border-ink bg-transparent py-1.5 pb-2 text-[15px] outline-none tracking-wide disabled:opacity-50"
-            />
-            <div class="font-mono text-[9.5px] text-faint mt-[7px] tracking-wide">SESSION 12H · HTTPONLY</div>
+        <button type="submit" :disabled="noPassword || busy" class="btn btn-primary w-full mt-5">
+          {{ busy ? '验证中…' : '登 录' }}
+        </button>
+      </form>
 
-            <button
-              type="submit"
-              :disabled="noPassword || busy"
-              class="btn btn-solid w-full h-9 justify-center mt-[22px] text-[13px] disabled:opacity-50"
-            >
-              {{ busy ? '验证中…' : '登 录' }}
-            </button>
-          </form>
+      <div v-if="err" class="alert alert-error mt-4">{{ err }}</div>
+    </div>
 
-          <div v-if="err" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs leading-[1.65] mt-4">
-            {{ err }}
-          </div>
-
-          <div class="flex justify-between mt-[18px] font-mono text-[9.5px] text-faint">
-            <span>Filecove {{ boot.version }}</span>
-            <a href="#" class="text-muted underline decoration-rule underline-offset-2" @click.prevent>忘记密码？改 Worker 变量</a>
-          </div>
-        </div>
-
-        <aside class="border-l border-rule pl-[26px] max-[860px]:hidden">
-          <div class="font-mono text-[9px] tracking-[0.12em] text-faint mb-2.5">INSTANCE</div>
-          <div class="flex justify-between gap-3 py-[7px] border-b border-[#e8e3d8] font-mono text-[9.5px] tracking-wide">
-            <span class="text-faint">STORAGE</span><b class="font-normal text-ink/80 truncate">{{ status?.driver || '—' }}</b>
-          </div>
-          <div class="flex justify-between gap-3 py-[7px] border-b border-[#e8e3d8] font-mono text-[9.5px] tracking-wide">
-            <span class="text-faint">BUCKET</span><b class="font-normal text-ink/80 truncate">{{ status?.bucket || '—' }}</b>
-          </div>
-          <div class="flex justify-between gap-3 py-[7px] border-b border-[#e8e3d8] font-mono text-[9.5px] tracking-wide">
-            <span class="text-faint">PROTOCOL</span><b class="font-normal text-ink/80">{{ status?.https ? 'HTTPS' : 'HTTP' }}</b>
-          </div>
-          <div class="flex justify-between gap-3 py-[7px] font-mono text-[9.5px] tracking-wide">
-            <span class="text-faint">VERSION</span><b class="font-normal text-ink/80">v{{ boot.version }}</b>
-          </div>
-        </aside>
-      </div>
+    <!-- 实例信息 -->
+    <div class="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-faint font-mono">
+      <span v-if="status?.driver">{{ status.driver }}</span>
+      <span v-if="status?.bucket">{{ status.bucket }}</span>
+      <span>{{ status?.https === false ? 'HTTP' : 'HTTPS' }}</span>
+      <span>v{{ boot.version }}</span>
     </div>
   </div>
 </template>

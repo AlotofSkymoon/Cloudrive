@@ -45,41 +45,47 @@ onMounted(load);
 
 <template>
   <section>
-    <div class="flex items-center gap-2.5 py-2.5 border-b border-[#e8e3d8]">
-      <span class="font-mono text-[10.5px] text-muted tracking-[0.03em]">{{ bans.length }} 个 IP 处于封禁中</span>
+    <div class="flex items-center gap-3 mb-3">
+      <span class="text-sm text-muted">{{ bans.length }} 个 IP 处于封禁中</span>
       <span class="flex-1"></span>
-      <button class="btn btn-sm" @click="addBan">手动封禁</button>
+      <button class="btn btn-primary btn-sm" @click="addBan">手动封禁</button>
     </div>
 
-    <div v-if="err" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs mt-3 flex items-center gap-3">
-      {{ err }}<button class="btn btn-sm ml-auto" @click="load">重试</button>
+    <div v-if="err" class="alert alert-error flex items-center gap-3">
+      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="py-10 text-faint text-[12.5px]">加载中…</div>
-    <div v-else-if="!bans.length" class="py-10 text-faint text-[12.5px]">当前没有封禁记录</div>
+    <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
-    <table v-else class="w-full border-collapse">
-      <thead>
-        <tr>
-          <th class="w-[150px]">IP</th>
-          <th class="w-[70px]">来源</th>
-          <th>原因</th>
-          <th class="w-[132px]">解除时间</th>
-          <th class="text-right w-[60px]">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="b in bans" :key="b.ip" class="hover:bg-[#efede4]">
-          <td><span class="num">{{ b.ip }}</span></td>
-          <td><span class="mono">{{ sourceOf(b) }}</span></td>
-          <td class="text-muted">{{ b.reason || '—' }}</td>
-          <td><span class="time">{{ fmtFull(b.until) }}</span></td>
-          <td class="text-right">
-            <div class="flex justify-end"><button class="text-muted hover:text-ink hover:underline underline-offset-2 text-[11.5px]" @click="unban(b.ip)">解封</button></div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else-if="!bans.length" class="card py-12 text-center text-sm text-faint">当前没有封禁记录</div>
 
-    <p class="text-faint text-[12.5px] pt-[26px]">封禁由限流自动触发，也可以在记录页手动封禁。解封立即生效。</p>
+    <div v-else class="card overflow-hidden">
+      <table>
+        <thead>
+          <tr>
+            <th class="w-40">IP</th>
+            <th class="w-20">来源</th>
+            <th>原因</th>
+            <th class="w-40">解除时间</th>
+            <th class="text-right w-20">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="b in bans" :key="b.ip">
+            <td><span class="num">{{ b.ip }}</span></td>
+            <td>
+              <span
+                class="text-[10px] rounded px-1.5 py-0.5"
+                :class="sourceOf(b) === '手动' ? 'bg-primary-soft text-primary' : 'bg-[#f0f0f0] text-muted'"
+              >{{ sourceOf(b) }}</span>
+            </td>
+            <td class="text-muted">{{ b.reason || '—' }}</td>
+            <td><span class="time">{{ fmtFull(b.until) }}</span></td>
+            <td class="text-right"><button class="btn-text btn-sm" @click="unban(b.ip)">解封</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-xs text-faint mt-4">封禁由限流自动触发，也可以在下载记录里手动封禁。解封立即生效。</p>
   </section>
 </template>

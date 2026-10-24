@@ -104,11 +104,6 @@ const toMb = (v: number) => Math.round((Number(v) || 0) * 1048576);
 const uploadGb = ref(0);
 const threshMb = ref(0);
 const partMb = ref(0);
-function syncUnits() {
-  uploadGb.value = gb(cfg.uploadMaxSize);
-  threshMb.value = mb(cfg.multipartThreshold);
-  partMb.value = mb(cfg.multipartPartSize);
-}
 function applyUnits() {
   cfg.uploadMaxSize = toGb(uploadGb.value);
   cfg.multipartThreshold = toMb(threshMb.value);
@@ -116,197 +111,250 @@ function applyUnits() {
 }
 
 const trafficGb = ref(0);
-function syncTraffic() {
-  trafficGb.value = Number((cfg.monthlyTrafficLimit / 1073741824).toFixed(2));
-}
 function applyTraffic() {
   cfg.monthlyTrafficLimit = Math.round(Number(trafficGb.value) * 1073741824);
+}
+
+function syncUnits() {
+  uploadGb.value = gb(cfg.uploadMaxSize);
+  threshMb.value = mb(cfg.multipartThreshold);
+  partMb.value = mb(cfg.multipartPartSize);
+  trafficGb.value = Number((cfg.monthlyTrafficLimit / 1073741824).toFixed(2));
 }
 
 onMounted(async () => {
   await load();
   syncUnits();
-  syncTraffic();
 });
 </script>
 
 <template>
-  <section>
-    <div v-if="err" class="border border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19] px-3 py-2.5 text-xs mt-3 flex items-center gap-3">
-      {{ err }}<button class="btn btn-sm ml-auto" @click="load">重试</button>
+  <section class="max-w-[720px]">
+    <div v-if="err" class="alert alert-error flex items-center gap-3">
+      {{ err }}<button class="btn btn-plain btn-sm ml-auto" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="py-10 text-faint text-[12.5px]">加载中…</div>
+    <div v-else-if="loading" class="py-12 text-center text-faint text-sm">加载中…</div>
 
-    <div v-else class="max-w-[640px]">
+    <div v-else class="space-y-4 pb-20">
       <!-- 直链与下载 -->
-      <div class="sec-title mt-2 mb-1">直链与下载</div>
-      <div class="field">
-        <label class="field-label">
-          公网域名<span class="src" v-if="sources.PUBLIC_BASE_URL">{{ sources.PUBLIC_BASE_URL }}</span>
-          <div class="field-desc">对象存储的公开访问域名</div>
-        </label>
-        <input v-model="cfg.publicBaseUrl" class="input" placeholder="cdn.example.com" @input="mark" />
-        <button class="btn btn-sm" @click="checkBase">检测</button>
-      </div>
-      <div v-if="diag" class="py-0 pb-1">
-        <div
-          class="border px-3 py-2.5 text-xs leading-[1.65] my-0.5 mb-2"
-          :class="diag.reason === 'ok' ? 'border-rule bg-surface' : diag.reason === 'no_public_base' ? 'border-[#e0d7bd] bg-[#faf6e8] text-[#7a6320]' : 'border-[#e3cfc9] bg-[#fbf1ee] text-[#8a2c19]'"
-        >
-          <template v-if="diag.reason === 'no_public_base'">
-            还没填公网域名。填了才有对象直链；不填也能用，下载会走预签名地址（同样不经过 Worker，只是带 15 分钟时效）。
-          </template>
-          <template v-else-if="diag.reason === 'public_base_not_applied'">
-            <b>已填了域名，但存储层没读到。</b>配置是从数据库读的，最常见的原因是还没重新部署。去 Actions 再跑一次，然后回来点「检测」。
-          </template>
-          <template v-else>
-            <b>直链已生效。</b>下载会直接跳到 <code class="font-mono text-[11px]">{{ diag.effectiveBase || diag.configuredBase }}</code>。
-            <span v-if="diag.sample"><br />示例：{{ diag.sample }}</span>
-            <br />如果点开示例是 404，说明这个域名在存储桶上没有开公开访问，需要到桶的「公共访问」里绑定自定义域。
-          </template>
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">直链与下载</h3>
         </div>
-      </div>
-      <div class="field">
-        <label class="field-label">
-          下载方式<span class="src" v-if="sources.DOWNLOAD_MODE">{{ sources.DOWNLOAD_MODE }}</span>
-        </label>
-        <select v-model="cfg.downloadMode" class="input" @change="mark">
-          <option value="auto">auto — 有公网域名走直链</option>
-          <option value="public">public — 强制直链</option>
-          <option value="signed">signed — 预签名（15 分钟）</option>
-          <option value="proxy">proxy — Worker 代理</option>
-        </select>
+        <div class="px-5">
+          <div class="field">
+            <label class="field-label">
+              公网域名<span class="src" v-if="sources.PUBLIC_BASE_URL">{{ sources.PUBLIC_BASE_URL }}</span>
+              <div class="field-desc">对象存储的公开访问域名</div>
+            </label>
+            <input v-model="cfg.publicBaseUrl" class="input" placeholder="cdn.example.com" @input="mark" />
+            <button class="btn btn-plain btn-sm" @click="checkBase">检测</button>
+          </div>
+          <div v-if="diag" class="pb-3">
+            <div v-if="diag.reason === 'no_public_base'" class="alert alert-warn">
+              还没填公网域名。填了才有对象直链；不填也能用，下载会走预签名地址（同样不经过 Worker，只是带 15 分钟时效）。
+            </div>
+            <div v-else-if="diag.reason === 'public_base_not_applied'" class="alert alert-error">
+              <b>已填了域名，但存储层没读到。</b>配置是从数据库读的，最常见的原因是还没重新部署。去 Actions 再跑一次，然后回来点「检测」。
+            </div>
+            <div v-else class="alert alert-info">
+              <b>直链已生效。</b>下载会直接跳到 <code class="font-mono text-xs">{{ diag.effectiveBase || diag.configuredBase }}</code>。
+              <span v-if="diag.sample"><br />示例：{{ diag.sample }}</span>
+              <br />如果点开示例是 404，说明这个域名在存储桶上没有开公开访问，需要到桶的「公共访问」里绑定自定义域。
+            </div>
+          </div>
+          <div class="field !border-b-0">
+            <label class="field-label">
+              下载方式<span class="src" v-if="sources.DOWNLOAD_MODE">{{ sources.DOWNLOAD_MODE }}</span>
+            </label>
+            <select v-model="cfg.downloadMode" class="input" @change="mark">
+              <option value="auto">auto — 有公网域名走直链</option>
+              <option value="public">public — 强制直链</option>
+              <option value="signed">signed — 预签名（15 分钟）</option>
+              <option value="proxy">proxy — Worker 代理</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <!-- 限流与防刷 -->
-      <div class="sec-title mt-[26px] mb-1">限流与防刷</div>
-      <div class="field">
-        <label class="field-label">单 IP 下载上限<span class="src" v-if="sources.IP_MAX_DOWNLOADS">{{ sources.IP_MAX_DOWNLOADS }}</span></label>
-        <input v-model="cfg.ipMaxDownloads" type="number" class="input !flex-none !w-[64px]" @input="mark" />
-        <span class="unit">次 /</span>
-        <input v-model="cfg.ipWindowSeconds" type="number" class="input !flex-none !w-[64px]" @input="mark" />
-        <span class="unit">秒</span>
-      </div>
-      <div class="field">
-        <label class="field-label">超限封禁时长<span class="src" v-if="sources.BAN_MINUTES">{{ sources.BAN_MINUTES }}</span></label>
-        <input v-model="cfg.banMinutes" type="number" class="input !flex-none !w-[64px]" @input="mark" />
-        <span class="unit">分钟</span>
-      </div>
-      <div class="field">
-        <label class="field-label">
-          月度流量上限<span class="src" v-if="sources.MONTHLY_TRAFFIC_LIMIT">{{ sources.MONTHLY_TRAFFIC_LIMIT }}</span>
-          <div class="field-desc">超出后拒绝下载，0 为不限</div>
-        </label>
-        <input v-model="trafficGb" type="number" class="input !flex-none !w-[64px]" @input="mark" @change="applyTraffic" />
-        <span class="unit">GB</span>
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">限流与防刷</h3>
+        </div>
+        <div class="px-5">
+          <div class="field">
+            <label class="field-label">
+              单 IP 下载上限<span class="src" v-if="sources.IP_MAX_DOWNLOADS">{{ sources.IP_MAX_DOWNLOADS }}</span>
+            </label>
+            <input v-model="cfg.ipMaxDownloads" type="number" class="input !flex-none !w-20" @input="mark" />
+            <span class="unit">次 /</span>
+            <input v-model="cfg.ipWindowSeconds" type="number" class="input !flex-none !w-20" @input="mark" />
+            <span class="unit">秒</span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              超限封禁时长<span class="src" v-if="sources.BAN_MINUTES">{{ sources.BAN_MINUTES }}</span>
+            </label>
+            <input v-model="cfg.banMinutes" type="number" class="input !flex-none !w-20" @input="mark" />
+            <span class="unit">分钟</span>
+          </div>
+          <div class="field !border-b-0">
+            <label class="field-label">
+              月度流量上限<span class="src" v-if="sources.MONTHLY_TRAFFIC_LIMIT">{{ sources.MONTHLY_TRAFFIC_LIMIT }}</span>
+              <div class="field-desc">超出后拒绝下载，0 为不限</div>
+            </label>
+            <input v-model="trafficGb" type="number" class="input !flex-none !w-20" @input="mark" @change="applyTraffic" />
+            <span class="unit">GB</span>
+          </div>
+        </div>
       </div>
 
       <!-- 人机验证 -->
-      <div class="sec-title mt-[26px] mb-1">人机验证</div>
-      <div class="field">
-        <label class="field-label">Turnstile<div class="field-desc">分享页下载前过一次验证</div></label>
-        <button
-          class="w-7 h-[15px] border border-faint rounded-[99px] relative flex-none"
-          :class="cfg.turnstileEnabled ? 'border-accent bg-accent/[0.08]' : ''"
-          @click="cfg.turnstileEnabled = !cfg.turnstileEnabled; mark()"
-        >
-          <i
-            class="absolute top-[2px] w-[9px] h-[9px] rounded-full transition-all"
-            :class="cfg.turnstileEnabled ? 'left-[15px] bg-accent' : 'left-[2px] bg-faint'"
-          ></i>
-        </button>
-        <span class="unit">{{ cfg.turnstileEnabled ? '已开启' : '已关闭' }}</span>
-      </div>
-      <div class="field">
-        <label class="field-label">Sitekey<span class="src" v-if="sources.TURNSTILE_SITEKEY">{{ sources.TURNSTILE_SITEKEY }}</span></label>
-        <input v-model="cfg.turnstileSitekey" class="input" @input="mark" />
-      </div>
-      <div class="field">
-        <label class="field-label">Secret<span class="src" v-if="sources.TURNSTILE_SECRET">{{ sources.TURNSTILE_SECRET }}</span></label>
-        <input v-model="cfg.turnstileSecret" type="password" class="input" placeholder="留空不改" @input="mark" />
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">人机验证</h3>
+        </div>
+        <div class="px-5">
+          <div class="field">
+            <label class="field-label">
+              Turnstile<div class="field-desc">分享页下载前过一次验证</div>
+            </label>
+            <button
+              class="switch"
+              :class="cfg.turnstileEnabled ? 'switch-on' : 'switch-off'"
+              @click="cfg.turnstileEnabled = !cfg.turnstileEnabled; mark()"
+            >
+              <i class="switch-dot"></i>
+            </button>
+            <span class="unit">{{ cfg.turnstileEnabled ? '已开启' : '已关闭' }}</span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              Sitekey<span class="src" v-if="sources.TURNSTILE_SITEKEY">{{ sources.TURNSTILE_SITEKEY }}</span>
+            </label>
+            <input v-model="cfg.turnstileSitekey" class="input" @input="mark" />
+          </div>
+          <div class="field !border-b-0">
+            <label class="field-label">Secret<span class="src" v-if="sources.TURNSTILE_SECRET">{{ sources.TURNSTILE_SECRET }}</span></label>
+            <input v-model="cfg.turnstileSecret" type="password" class="input" placeholder="留空不改" @input="mark" />
+          </div>
+        </div>
       </div>
 
       <!-- 上传 -->
-      <div class="sec-title mt-[26px] mb-1">上传</div>
-      <div class="field">
-        <label class="field-label">单文件上限<span class="src" v-if="sources.UPLOAD_MAX_SIZE">{{ sources.UPLOAD_MAX_SIZE }}</span></label>
-        <input v-model="uploadGb" type="number" class="input !flex-none !w-[64px]" @input="mark" @change="applyUnits" />
-        <span class="unit">GB</span>
-      </div>
-      <div class="field">
-        <label class="field-label">分片阈值<div class="field-desc">超过这个大小走分片直传</div></label>
-        <input v-model="threshMb" type="number" class="input !flex-none !w-[64px]" @input="mark" @change="applyUnits" />
-        <span class="unit">MB</span>
-      </div>
-      <div class="field">
-        <label class="field-label">分片大小</label>
-        <input v-model="partMb" type="number" class="input !flex-none !w-[64px]" @input="mark" @change="applyUnits" />
-        <span class="unit">MB</span>
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">上传</h3>
+        </div>
+        <div class="px-5">
+          <div class="field">
+            <label class="field-label">单文件上限<span class="src" v-if="sources.UPLOAD_MAX_SIZE">{{ sources.UPLOAD_MAX_SIZE }}</span></label>
+            <input v-model="uploadGb" type="number" class="input !flex-none !w-20" @input="mark" @change="applyUnits" />
+            <span class="unit">GB</span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              分片阈值<div class="field-desc">超过这个大小走分片直传</div>
+            </label>
+            <input v-model="threshMb" type="number" class="input !flex-none !w-20" @input="mark" @change="applyUnits" />
+            <span class="unit">MB</span>
+          </div>
+          <div class="field !border-b-0">
+            <label class="field-label">分片大小</label>
+            <input v-model="partMb" type="number" class="input !flex-none !w-20" @input="mark" @change="applyUnits" />
+            <span class="unit">MB</span>
+          </div>
+        </div>
       </div>
 
       <!-- 存储 -->
-      <div class="sec-title mt-[26px] mb-1">存储</div>
-      <div class="field">
-        <label class="field-label">
-          驱动<span class="src" v-if="sources.STORAGE_DRIVER">{{ sources.STORAGE_DRIVER }}</span>
-          <div class="field-desc">切到 S3 需要把下面几项填全</div>
-        </label>
-        <select v-model="cfg.storageDriver" class="input" @change="mark">
-          <option value="auto">auto — 有 S3 配置用 S3，否则 R2 绑定</option>
-          <option value="r2">r2 — 只用 R2 绑定</option>
-          <option value="s3">s3 — 只用 S3 兼容</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">R2 桶名<div class="field-desc">R2 绑定模式下仅用于显示</div></label>
-        <input v-model="cfg.r2BucketName" class="input" @input="mark" />
-      </div>
-      <div class="field">
-        <label class="field-label">容量上限<div class="field-desc">只影响侧栏进度条，填 0 不显示</div></label>
-        <input v-model="cfg.storageQuotaGb" type="number" class="input !flex-none !w-[64px]" @input="mark" />
-        <span class="unit">GB</span>
-      </div>
-      <div class="field">
-        <label class="field-label">S3 Endpoint<div class="field-desc">B2 / COS / OSS / MinIO / R2 的 S3 API 地址</div></label>
-        <input v-model="cfg.s3Endpoint" class="input" placeholder="https://s3.example.com" @input="mark" />
-      </div>
-      <div class="field">
-        <label class="field-label">S3 桶</label>
-        <input v-model="cfg.s3Bucket" class="input" @input="mark" />
-      </div>
-      <div class="field">
-        <label class="field-label">S3 区域<div class="field-desc">R2 填 auto</div></label>
-        <input v-model="cfg.s3Region" class="input" @input="mark" />
-      </div>
-      <div class="field">
-        <label class="field-label">
-          S3 Access Key<span class="unit ml-0" v-if="cfg.s3HasKey">（已设置）</span>
-          <div class="field-desc">留空则不改动</div>
-        </label>
-        <input v-model="s3Ak" type="text" class="input !flex-none !w-[220px]" placeholder="留空不改" />
-      </div>
-      <div class="field">
-        <label class="field-label">S3 Secret Key<div class="field-desc">留空则不改动</div></label>
-        <input v-model="s3Sk" type="password" class="input !flex-none !w-[220px]" placeholder="留空不改" />
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">存储</h3>
+        </div>
+        <div class="px-5">
+          <div class="field">
+            <label class="field-label">
+              驱动<span class="src" v-if="sources.STORAGE_DRIVER">{{ sources.STORAGE_DRIVER }}</span>
+              <div class="field-desc">切到 S3 需要把下面几项填全</div>
+            </label>
+            <select v-model="cfg.storageDriver" class="input" @change="mark">
+              <option value="auto">auto — 有 S3 配置用 S3，否则 R2 绑定</option>
+              <option value="r2">r2 — 只用 R2 绑定</option>
+              <option value="s3">s3 — 只用 S3 兼容</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              R2 桶名<div class="field-desc">R2 绑定模式下仅用于显示</div>
+            </label>
+            <input v-model="cfg.r2BucketName" class="input" @input="mark" />
+          </div>
+          <div class="field">
+            <label class="field-label">
+              容量上限<div class="field-desc">只影响侧栏进度条，填 0 不显示</div>
+            </label>
+            <input v-model="cfg.storageQuotaGb" type="number" class="input !flex-none !w-20" @input="mark" />
+            <span class="unit">GB</span>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              S3 Endpoint<div class="field-desc">B2 / COS / OSS / MinIO / R2 的 S3 API 地址</div>
+            </label>
+            <input v-model="cfg.s3Endpoint" class="input" placeholder="https://s3.example.com" @input="mark" />
+          </div>
+          <div class="field">
+            <label class="field-label">S3 桶</label>
+            <input v-model="cfg.s3Bucket" class="input" @input="mark" />
+          </div>
+          <div class="field">
+            <label class="field-label">
+              S3 区域<div class="field-desc">R2 填 auto</div>
+            </label>
+            <input v-model="cfg.s3Region" class="input" @input="mark" />
+          </div>
+          <div class="field">
+            <label class="field-label">
+              S3 Access Key<span class="unit ml-0" v-if="cfg.s3HasKey">（已设置）</span>
+              <div class="field-desc">留空则不改动</div>
+            </label>
+            <input v-model="s3Ak" class="input !flex-none !w-[240px]" placeholder="留空不改" />
+          </div>
+          <div class="field !border-b-0">
+            <label class="field-label">
+              S3 Secret Key<div class="field-desc">留空则不改动</div>
+            </label>
+            <input v-model="s3Sk" type="password" class="input !flex-none !w-[240px]" placeholder="留空不改" />
+          </div>
+        </div>
       </div>
 
       <!-- 管理员 -->
-      <div class="sec-title mt-[26px] mb-1">管理员</div>
-      <div class="field">
-        <label class="field-label">登录密码<div class="field-desc">留空表示不修改</div></label>
-        <input v-model="pwd" type="password" class="input !flex-none !w-[220px]" placeholder="留空不改" />
+      <div class="card">
+        <div class="px-5 h-12 flex items-center border-b border-rule">
+          <h3 class="text-sm font-medium m-0">管理员</h3>
+        </div>
+        <div class="px-5">
+          <div class="field !border-b-0">
+            <label class="field-label">
+              登录密码<div class="field-desc">留空表示不修改</div>
+            </label>
+            <input v-model="pwd" type="password" class="input !flex-none !w-[240px]" placeholder="留空不改" />
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 保存栏 -->
-    <div
-      class="sticky bottom-[34px] z-[15] mt-[26px] -mx-[30px] px-[30px] py-[11px] bg-[#f7f5ef] border-t border-rule flex items-center gap-3 text-xs text-muted max-[860px]:-mx-4 max-[860px]:px-4"
-    >
-      <span class="w-[5px] h-[5px] bg-accent flex-none"></span>
-      <span>{{ dirty ? '有未保存的改动' : '改完点保存，会存进数据库（优先级高于环境变量，重新部署不会冲掉）' }}</span>
+    <div class="fixed bottom-0 left-60 right-0 bg-surface border-t border-rule px-5 py-3 flex items-center gap-3 z-20 max-[860px]:left-0">
+      <span v-if="dirty" class="w-2 h-2 rounded-full bg-warn flex-none"></span>
+      <span class="text-sm text-muted">
+        {{ dirty ? '有未保存的改动' : '改完点保存，会存进数据库（优先级高于环境变量，重新部署不会冲掉）' }}
+      </span>
       <span class="flex-1"></span>
-      <button class="btn btn-sm" @click="load">放弃</button>
-      <button class="btn btn-solid btn-sm" @click="save">保存</button>
+      <button class="btn btn-plain" @click="load">放弃</button>
+      <button class="btn btn-primary" @click="save">保存</button>
     </div>
   </section>
 </template>
