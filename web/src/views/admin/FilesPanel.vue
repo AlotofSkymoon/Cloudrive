@@ -12,7 +12,24 @@ const loading = ref(true);
 const loadErr = ref('');
 const offset = ref(0);
 const sel = ref<Record<number, boolean>>({});
-const uploading = ref<{ name: string; pct: number }[]>([]);
+/* 上传任务：Cloudreve 式的任务面板，逐个显示进度 / 已传大小 / 速度 */
+type TaskStatus = 'queued' | 'uploading' | 'done' | 'error';
+interface UploadTask {
+  id: number;
+  name: string;
+  size: number;
+  loaded: number;
+  pct: number;
+  speed: number; // 字节/秒（指数滑动平均）
+  status: TaskStatus;
+  mode: string; // 直传 / 分片 / Worker
+  error?: string;
+  file: File;
+  xhr?: XMLHttpRequest | null;
+  _last: number;
+  _lastTs: number;
+}
+const uploading = ref<UploadTask[]>([]);
 const showUploader = ref(false);
 const picker = ref<HTMLInputElement | null>(null);
 const dropOn = ref(false);
@@ -110,7 +127,7 @@ async function copyLink(f: FileItem) {
 function pick() {
   picker.value?.click();
 }
-// 侧边栏「+ 新建」通过这里唤起
+// 顶栏「+ 新建」通过这里唤起
 const registerPicker = inject<(fn: () => void) => void>('registerPicker', () => {});
 onMounted(() => registerPicker(pick));
 
@@ -124,45 +141,120 @@ function onDrop(e: DragEvent) {
   if (e.dataTransfer?.files) queue(Array.from(e.dataTransfer.files));
 }
 
-let busy = false;
-async function queue(list: File[]) {
-  if (busy) return;
-  busy = true;
-  showUploader.value = true;
-  try {
-    for (const f of list) {
-      const idx = uploading.value.length;
-      uploading.value.push({ name: f.name, pct: 0 });
-      try {
-        await uploadOne(f, idx);
-        uploading.value[idx].pct = 100;
-      } catch (err: any) {
-        alert('上传失败：' + (err?.message || err));
-      }
-    }
-  } finally {
-    busy = false;
-    load(true);
-    emit('changed');
+const MAX_CONCURRENT = 3;
+let taskSeq = 0;
+
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/** 累加已传字节，顺便算速度（对累计量做指数滑动平均） */
+function advance(t: UploadTask, delta: number) {
+  if (delta > 0) t.loaded = Math.min(t.size, t.loaded + delta);
+  t.pct = t.size > 0 ? Math.min(100, Math.round((t.loaded / t.size) * 100)) : 0;
+  const ts = now();
+  const dt = (ts - t._lastTs) / 1000;
+  if (dt >= 0.3) {
+    const inst = (t.loaded - t._last) / dt;
+    t.speed = t.speed > 0 ? t.speed * 0.7 + inst * 0.3 : inst;
+    t._last = t.loaded;
+    t._lastTs = ts;
   }
 }
 
-function xhr(method: string, url: string, headers: Record<string, string>, blob: Blob, onProg?: (p: number) => void) {
-  return new Promise<XMLHttpRequest>((res, rej) => {
-    const x = new XMLHttpRequest();
+// 超过 1.5 秒没有新进度就把速度归零，避免卡住后还显示旧速度
+setInterval(() => {
+  const ts = now();
+  for (const t of uploading.value) {
+    if (t.status === 'uploading' && ts - t._lastTs > 1500) t.speed = 0;
+  }
+}, 1000);
+
+function xhr(
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  blob: Blob,
+  onLoaded?: (loaded: number) => void
+): Promise<XMLHttpRequest> & { req: XMLHttpRequest } {
+  const x = new XMLHttpRequest();
+  const p: any = new Promise<XMLHttpRequest>((res, rej) => {
     x.open(method, url, true);
     for (const k in headers) x.setRequestHeader(k, headers[k]);
     x.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProg) onProg(e.loaded / e.total);
+      if (e.lengthComputable && onLoaded) onLoaded(e.loaded);
     };
     x.onload = () => (x.status >= 200 && x.status < 300 ? res(x) : rej(new Error('HTTP ' + x.status)));
     x.onerror = () => rej(new Error('网络错误'));
+    x.onabort = () => rej(new Error('已取消'));
     x.send(blob);
+  });
+  p.req = x;
+  return p;
+}
+
+async function queue(list: File[]) {
+  showUploader.value = true;
+  const tasks = list.map<UploadTask>((f) => ({
+    id: ++taskSeq,
+    name: f.name,
+    size: f.size,
+    loaded: 0,
+    pct: 0,
+    speed: 0,
+    status: 'queued',
+    mode: '',
+    file: f,
+    xhr: null,
+    _last: 0,
+    _lastTs: now(),
+  }));
+  uploading.value.push(...tasks);
+
+  // 并行跑（Cloudreve 是并行的），但同一时间最多 3 个
+  let cursor = 0;
+  async function worker() {
+    for (;;) {
+      const t = tasks[cursor++];
+      if (!t) return;
+      t.status = 'uploading';
+      t._lastTs = now();
+      try {
+        await uploadOne(t);
+        t.loaded = t.size || t.loaded;
+        t.pct = 100;
+        t.speed = 0;
+        t.status = 'done';
+      } catch (err: any) {
+        t.error = String(err?.message || err);
+        t.status = 'error';
+        t.speed = 0;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT, tasks.length) }, worker));
+  load(true);
+  emit('changed');
+}
+
+function retry(t: UploadTask) {
+  t.status = 'queued';
+  t.loaded = 0;
+  t.pct = 0;
+  t.speed = 0;
+  t.error = '';
+  queue([t.file]).then(() => {
+    const i = uploading.value.findIndex((x) => x.id === t.id);
+    if (i >= 0) uploading.value.splice(i, 1);
   });
 }
 
-async function uploadOne(file: File, idx: number) {
-  const setPct = (p: number) => (uploading.value[idx].pct = Math.round(p));
+function cancel(t: UploadTask) {
+  t.xhr?.abort();
+  const i = uploading.value.findIndex((x) => x.id === t.id);
+  if (i >= 0) uploading.value.splice(i, 1);
+}
+
+async function uploadOne(t: UploadTask) {
+  const file = t.file;
   const r = await api.post<any>('/api/upload/presign', {
     name: file.name,
     size: file.size,
@@ -171,30 +263,45 @@ async function uploadOne(file: File, idx: number) {
   if (!r) throw new Error('获取上传凭证失败');
 
   if (r.mode === 'direct') {
-    await xhr('PUT', r.url, { 'content-type': file.type || 'application/octet-stream' }, file, (p) => setPct(p * 100));
+    t.mode = '直传';
+    const p = xhr('PUT', r.url, { 'content-type': file.type || 'application/octet-stream' }, file, (l) => advance(t, l));
+    t.xhr = p.req;
+    await p;
   } else if (r.mode === 'multipart') {
+    t.mode = '分片';
     const parts = Math.ceil(file.size / r.partSize);
     const uploaded: { PartNumber: number; ETag: string }[] = [];
+    // 每个分片各自记录已传字节，增量累加，避免并行时互相覆盖
+    const partLoaded = new Array(parts).fill(0);
     let next = 0;
-    async function worker() {
+    async function partWorker() {
       for (;;) {
         const i = next++;
         if (i >= parts) return;
         const chunk = file.slice(i * r.partSize, (i + 1) * r.partSize);
-        const x = await xhr('PUT', r.urls[i], {}, chunk);
+        const p = xhr('PUT', r.urls[i], {}, chunk, (l) => {
+          const d = l - partLoaded[i];
+          partLoaded[i] = l;
+          advance(t, d);
+        });
+        t.xhr = p.req;
+        const x = await p;
         const etag = x.getResponseHeader('ETag');
         if (!etag) throw new Error('读取分片 ETag 失败，请检查存储桶 CORS 是否暴露 ETag');
         uploaded.push({ PartNumber: i + 1, ETag: etag.replace(/"/g, '') });
-        setPct(Math.min(98, (uploaded.length / parts) * 100));
       }
     }
-    await Promise.all(Array.from({ length: Math.min(3, parts) }, worker));
+    await Promise.all(Array.from({ length: Math.min(3, parts) }, partWorker));
     uploaded.sort((a, b) => a.PartNumber - b.PartNumber);
     await api.post('/api/upload/multipart/complete', { key: r.key, uploadId: r.uploadId, parts: uploaded, fileId: r.fileId });
   } else {
-    await xhr('PUT', r.url, { 'content-type': file.type || 'application/octet-stream' }, file, (p) => setPct(p * 100));
+    t.mode = 'Worker';
+    const p = xhr('PUT', r.url, { 'content-type': file.type || 'application/octet-stream' }, file, (l) => advance(t, l));
+    t.xhr = p.req;
+    await p;
     await api.post('/api/upload/confirm', { fileId: r.fileId, size: file.size });
   }
+  t.xhr = null;
 }
 
 /* ---------- 分享弹窗 ---------- */
@@ -244,6 +351,14 @@ function thumbFail(el: Event) {
 }
 
 const lightbox = ref<string | null>(null);
+
+function fmtSpeed(bps: number): string {
+  return fmtBytes(bps) + '/s';
+}
+
+function clearDone() {
+  uploading.value = uploading.value.filter((t) => t.status !== 'done');
+}
 
 onMounted(() => load(true));
 </script>
@@ -431,25 +546,77 @@ onMounted(() => load(true));
 
     <div v-if="offset" class="mt-4 text-center"><button class="btn btn-outlined btn-sm" @click="load(false)">加载更多</button></div>
 
-    <!-- 上传队列 -->
-    <div v-if="showUploader" class="fixed right-5 bottom-5 w-80 bg-surface rounded-lg border border-rule shadow-e3 z-50 max-[860px]:left-3 max-[860px]:right-3 max-[860px]:w-auto">
-      <div class="flex items-center gap-2 px-4 h-11 border-b border-rule text-sm font-medium">
-        <span>上传队列</span>
-        <span class="text-xs text-faint font-mono">{{ uploading.length }}</span>
+    <!-- 上传任务面板（Cloudreve 式：右下角，逐任务显示进度 / 已传 / 速度） -->
+    <div
+      v-if="showUploader"
+      class="fixed right-6 bottom-6 w-[380px] bg-surface-container-lowest rounded-lg shadow-e3 z-50 overflow-hidden max-[900px]:left-3 max-[900px]:right-3 max-[900px]:w-auto"
+    >
+      <div class="flex items-center gap-2 px-4 h-14 border-b border-outline-variant">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="text-primary"><path d="M12 16l-5-5h3V4h4v7h3l-5 5Zm-7 2h14v2H5v-2Z" /></svg>
+        <span class="text-sm font-medium">上传任务</span>
+        <span class="text-xs text-muted font-mono">{{ uploading.length }}</span>
         <span class="flex-1"></span>
-        <button class="text-faint text-xs hover:text-ink" @click="showUploader = false">收起</button>
+        <button class="btn btn-text !px-2 btn-sm" @click="clearDone">清除已完成</button>
+        <button class="text-faint text-lg leading-none hover:text-ink px-1" @click="showUploader = false">×</button>
       </div>
-      <div class="max-h-64 overflow-y-auto">
-        <div v-for="(t, i) in uploading" :key="i" class="flex items-center gap-3 px-4 py-2.5 border-b border-outline-variant/40 last:border-b-0">
-          <span class="ext">{{ fileExt(t.name) }}</span>
+
+      <div class="max-h-[340px] overflow-y-auto">
+        <div
+          v-for="t in uploading"
+          :key="t.id"
+          class="flex items-start gap-3 px-4 py-3 border-b border-outline-variant/40 last:border-b-0"
+        >
+          <span class="ext mt-0.5">{{ fileExt(t.name) }}</span>
+
           <div class="flex-1 min-w-0">
-            <div class="text-[13px] truncate">{{ t.name }}</div>
-            <div class="h-1 bg-rule rounded-full mt-1.5 overflow-hidden">
-              <i class="block h-full bg-primary rounded-full transition-[width]" :style="{ width: t.pct + '%' }"></i>
+            <div class="flex items-center gap-2">
+              <span class="text-[13px] truncate flex-1" :title="t.name">{{ t.name }}</span>
+              <span
+                v-if="t.status === 'uploading' || t.status === 'queued'"
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-secondary-container text-[#0C1C22] flex-none"
+              >{{ t.status === 'queued' ? '排队中' : t.mode || '上传中' }}</span>
+              <span
+                v-else-if="t.status === 'done'"
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-[#C8E7FF] text-[#001F2C] flex-none"
+              >已上传</span>
+              <span
+                v-else
+                class="text-[10px] px-1.5 py-0.5 rounded-sm bg-error-container text-[#410002] flex-none"
+              >失败</span>
+            </div>
+
+            <div class="h-1 bg-outline-variant rounded-full mt-2 overflow-hidden">
+              <i
+                class="block h-full rounded-full transition-[width] duration-200"
+                :class="t.status === 'error' ? 'bg-error' : t.status === 'done' ? 'bg-primary' : 'bg-primary'"
+                :style="{ width: t.pct + '%' }"
+              ></i>
+            </div>
+
+            <div class="flex items-center gap-2 mt-1.5 text-[11px] text-muted font-mono">
+              <span class="text-ink">{{ t.pct }}%</span>
+              <span>{{ fmtBytes(t.loaded) }} / {{ fmtBytes(t.size) }}</span>
+              <span v-if="t.speed > 0" class="text-primary">{{ fmtSpeed(t.speed) }}</span>
+              <span class="flex-1"></span>
+              <span v-if="t.status === 'error'" class="text-error truncate max-w-[120px]" :title="t.error">{{ t.error }}</span>
             </div>
           </div>
-          <span class="text-[11px] text-faint font-mono w-10 text-right">{{ t.pct >= 100 ? '完成' : t.pct + '%' }}</span>
+
+          <div class="flex-none flex items-center">
+            <button
+              v-if="t.status === 'error'"
+              class="btn btn-text !px-2 btn-sm"
+              @click="retry(t)"
+            >重试</button>
+            <button
+              v-else-if="t.status === 'uploading' || t.status === 'queued'"
+              class="text-faint hover:text-error text-sm px-1"
+              @click="cancel(t)"
+            >×</button>
+          </div>
         </div>
+
+        <div v-if="!uploading.length" class="px-4 py-8 text-center text-sm text-faint">暂无上传任务</div>
       </div>
     </div>
 

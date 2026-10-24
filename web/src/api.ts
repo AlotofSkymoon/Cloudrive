@@ -148,20 +148,29 @@ export function isImage(f: { name?: string; mime?: string | null }): boolean {
   return /^image\//i.test(f.mime || '') || IMG_EXT.test(f.name || '');
 }
 
-/* 文件归类：给左侧「图片 / 视频 / 音乐 / 文档」用 */
+/* 文件归类：给左侧「图片 / 视频 / 音乐 / 文档 / 软件」用 */
 const VIDEO_EXT = /\.(mp4|webm|mov|mkv|avi|flv|m4v|wmv|ts|mpg|mpeg|3gp)$/i;
 const AUDIO_EXT = /\.(mp3|flac|wav|ogg|m4a|aac|opus|wma|ape)$/i;
 const DOC_EXT = /\.(pdf|docx?|xlsx?|pptx?|txt|md|csv|epub|rtf|odt|ods|odp|json|ya?ml|zip|rar|7z|tar|gz)$/i;
+// 安装包 / 可执行程序
+const SOFTWARE_EXT =
+  /\.(apk|ipa|exe|msi|dmg|pkg|deb|rpm|appimage|msix|appx|xap|apk\.1|ipa\.1|aab|jar|war|bin|run|sh|bat|cmd|com|scr|gadget|vb|vbs|ps1|msi\.1)$/i;
 
-export type FileKind = 'image' | 'video' | 'audio' | 'doc' | 'other';
+export type FileKind = 'image' | 'video' | 'audio' | 'doc' | 'software' | 'other';
 
 export function fileKind(f: { name?: string; mime?: string | null }): FileKind {
   const mime = String(f?.mime || '').toLowerCase();
   const name = String(f?.name || '');
+  // 软件优先：.dmg/.pkg 这类也可能带 application/octet-stream
+  if (SOFTWARE_EXT.test(name)) return 'software';
   if (isImage(f)) return 'image';
   if (mime.startsWith('video/') || VIDEO_EXT.test(name)) return 'video';
   if (mime.startsWith('audio/') || AUDIO_EXT.test(name)) return 'audio';
   if (DOC_EXT.test(name) || /^(application\/(pdf|msword|vnd)|text\/)/i.test(mime)) return 'doc';
+  // Android / iOS / Windows 安装包的常见 MIME
+  if (/application\/(vnd\.android|iphone|x-msdownload|x-msi|x-apple|java-archive|x-executable)/i.test(mime)) {
+    return 'software';
+  }
   return 'other';
 }
 

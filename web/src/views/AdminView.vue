@@ -17,6 +17,7 @@ const library = [
   { key: 'videos', label: '视频', kind: 'video', icon: 'video' },
   { key: 'audio', label: '音乐', kind: 'audio', icon: 'audio' },
   { key: 'docs', label: '文档', kind: 'doc', icon: 'doc' },
+  { key: 'software', label: '软件', kind: 'software', icon: 'software' },
 ] as const;
 
 const manage = [
@@ -35,7 +36,7 @@ const counts = ref<Record<string, number | string>>({
   bans: '—',
 });
 
-const FILE_KEYS: NavKey[] = ['all', 'images', 'videos', 'audio', 'docs'];
+const FILE_KEYS: NavKey[] = ['all', 'images', 'videos', 'audio', 'docs', 'software'];
 const isFileView = computed(() => FILE_KEYS.includes(active.value));
 const currentFilter = computed(() => {
   const item = library.find((t) => t.key === active.value);
@@ -113,13 +114,6 @@ onMounted(() => {
         <span class="text-lg tracking-tight">Filecove</span>
       </div>
 
-      <div class="px-4 pb-4">
-        <button class="fab-extended w-full" @click="newUpload">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z" /></svg>
-          新建
-        </button>
-      </div>
-
       <nav class="flex-1 overflow-y-auto pb-2 max-[900px]:flex max-[900px]:gap-1 max-[900px]:overflow-x-auto max-[900px]:flex-none">
         <div class="px-4 pt-2 pb-1 text-xs font-medium tracking-wide text-faint">我的文件</div>
         <div class="px-2">
@@ -141,6 +135,9 @@ onMounted(() => {
             </svg>
             <svg v-else-if="t.icon === 'audio'" class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+            </svg>
+            <svg v-else-if="t.icon === 'software'" class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Zm-6 0h-4V5h4v2Zm-7 6h4v2H7v-2Zm0 4h10v2H7v-2Z" />
             </svg>
             <svg v-else class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm-1 7V3.5L18.5 9H13Z" />
@@ -204,6 +201,11 @@ onMounted(() => {
         <span class="flex-1"></span>
         <span class="text-xs text-faint font-mono mr-2 hidden sm:inline">{{ stats ? stats.files + ' 个对象' : '' }}</span>
         <button class="btn btn-text btn-sm" @click="loadStats(); loadBansCount()">刷新</button>
+        <!-- Cloudreve 的「+ New」在顶栏右侧 -->
+        <button class="btn btn-filled btn-sm" @click="newUpload">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z" /></svg>
+          新建
+        </button>
       </header>
 
       <div class="flex-1 overflow-y-auto px-6 py-5 max-[900px]:px-3 max-[900px]:overflow-visible">
