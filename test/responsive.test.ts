@@ -20,7 +20,8 @@ function vueFiles(): string[] {
     }
   };
   walk(join(ROOT, 'web/src'));
-  return out;
+  // 返回相对路径，交给 read() 再拼 ROOT——直接返回绝对路径会被 join 二次拼接
+  return out.map((p) => p.slice(ROOT.length + 1));
 }
 
 const VIEWS = [

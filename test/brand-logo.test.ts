@@ -60,10 +60,14 @@ test('三种配色都要渲染出来，不能退化成同一份', () => {
         : v === 'white'
           ? { cloud: '#ffffff', folder: INK, arc: INK }
           : { cloud: 'url(#g)', folder: '#ffffff', arc: '#ffffff' };
-    return tpl
+    let svg = tpl
       .replace('__CLOUD__', p.cloud)
       .replace('__FOLDER__', p.folder)
       .replace('__ARC__', p.arc);
+    // 和 src/logo.ts 的 renderLogo 一致：黑白配色要把 <defs> 渐变整段去掉，
+    // 否则会留一份没用的蓝色定义
+    if (v !== 'color') svg = svg.replace(/<defs>[\s\S]*?<\/defs>/, '');
+    return svg;
   };
   const color = render('color');
   const black = render('black');
