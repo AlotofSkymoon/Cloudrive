@@ -131,6 +131,12 @@ test('图标配色可在设置里切换，且值会被后端规范化', () => {
     assert.ok(settings.includes(`value="${v}"`), `设置页缺 ${v} 选项`);
   }
 
+  // 选项文案是产品命名：黑色叫「零白」，白色叫「原白」
+  assert.ok(settings.includes('>零白<'), '零白（黑）的文案不对');
+  assert.ok(settings.includes('>原白<'), '原白（白）的文案不对');
+  assert.ok(!settings.includes('>黑色<'), '不该再出现「黑色」');
+  assert.ok(!settings.includes('>白色<'), '不该再出现「白色」');
+
   const db = read('src/db.ts');
   assert.match(db, /LOGO_VARIANT:\s*'color'/, '默认配置缺 LOGO_VARIANT');
   assert.match(db, /normalizeLogoVariant/, '缺非法值回落逻辑');

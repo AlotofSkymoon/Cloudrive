@@ -348,7 +348,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <!-- 品牌图标配色：彩色 / 黑 / 白 / 跟随系统 -->
+      <!-- 品牌图标配色 -->
       <div class="field">
         <label class="field-label">
           图标配色
@@ -357,12 +357,15 @@ onMounted(async () => {
         <div class="flex items-center gap-3 flex-1">
           <select v-model="cfg.logoVariant" class="input !flex-none !w-40" @change="onLogoChange">
             <option value="color">彩色</option>
-            <option value="black">黑色</option>
-            <option value="white">白色</option>
+            <option value="black">零白</option>
+            <option value="white">原白</option>
             <option value="auto">跟随系统</option>
           </select>
           <BrandLogo :size="30" class="ml-1" />
         </div>
+      </div>
+      <div class="text-xs text-faint -mt-1 mb-1">
+        <b>零白</b>＝近黑云朵配白文件夹，适合浅色背景；<b>原白</b>＝白云朵配近黑文件夹，适合深色背景。
       </div>
 
       <!-- 管理员 -->
