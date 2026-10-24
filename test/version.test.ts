@@ -38,8 +38,8 @@ test('package.json / page.ts / README / CHANGELOG 版本号一致', () => {
   assert.equal(changelogLatest(), pkg, `CHANGELOG 最新条目是 ${changelogLatest()}，package.json 是 ${pkg}`);
 });
 
-test('当前版本为 2.2.0', () => {
-  assert.equal(pkgVersion(), '2.2.0');
+test('当前版本为 1.0.0-beta', () => {
+  assert.equal(pkgVersion(), '1.0.0-beta');
 });
 
 test('页面渲染出的首屏数据带版本号', async () => {
@@ -52,7 +52,7 @@ test('页面渲染出的首屏数据带版本号', async () => {
   }
 });
 
-// 仓库里应该只剩 1.0.0：文档、源码、脚本里都不该再出现 0.x 的版本痕迹
+// 仓库里应该只有一个版本：文档、源码、脚本里都不该再出现旧版本号的痕迹
 test('文档与源码里不留旧版本号痕迹', () => {
   const files = [
     'README.md',
@@ -79,9 +79,9 @@ test('文档与源码里不留旧版本号痕迹', () => {
   }
 });
 
-test('CHANGELOG 顶层只有 1.0.0 一个版本条目', () => {
+test('CHANGELOG 顶层只有当前一个版本条目', () => {
   const src = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
   const top = [...src.matchAll(/^##\s+([\w.\-]+)\s+—/gm)].map((m) => m[1]);
-  assert.ok(top.includes('1.0.0'), '顶层应有 1.0.0');
-  assert.ok(!top.some((v) => /^0\./.test(v)), `顶层不该有 0.x 条目：${top.join(', ')}`);
+  const pkg = pkgVersion();
+  assert.deepEqual(top, [pkg], `顶层应只有 ${pkg} 一个条目，实际：${top.join(', ')}`);
 });

@@ -54,8 +54,9 @@ test('主题色写进 CSS 变量（inline style 覆盖 :root）', () => {
   assert.ok(m, '缺 applyTint');
   assert.match(m[0], /setProperty\('--c-tint'/, '没有写 --c-tint');
   assert.match(m[0], /documentElement/, '没写到根元素');
-  // 深色模式要用另一组值
-  assert.match(m[0], /prefersDark\.value/, '深色模式没有用另一套色值');
+  // 深色模式要用另一组值。判断依据是 isDark（手动外观 + 系统设置），
+  // 不是 prefersDark——后者只看系统，手动锁深色时不生效。
+  assert.match(m[0], /isDark\.value/, '深色模式没有用另一套色值');
 });
 
 test('非法主题色回落蓝色，不会写坏 CSS 变量', () => {

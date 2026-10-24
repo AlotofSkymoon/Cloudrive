@@ -1,6 +1,6 @@
 {
   "name": "cloudrive",
-  "version": "2.2.0",
+  "version": "1.0.0-beta",
   "private": true,
   "type": "module",
   "description": "基于 Cloudflare Workers + R2/任意 S3 存储的自建网盘分享系统（直链下载）",
