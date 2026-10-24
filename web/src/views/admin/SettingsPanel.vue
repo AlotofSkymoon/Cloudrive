@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
 import { api, type Config } from '../../api';
-import { logoSetting } from '../../theme';
+import { logoSetting, setTint, TINTS, TINT_LABELS, TINT_NAMES, type TintName } from '../../theme';
 import BrandLogo from '../../components/BrandLogo.vue';
 
 // 配置全部存在数据库里，在设置页改；环境变量只是兜底。
@@ -28,6 +28,7 @@ const cfg = reactive<Config>({
   s3HasKey: false,
   storageQuotaGb: 10,
   logoVariant: 'color',
+  tint: 'blue',
 });
 
 const sources = ref<Record<string, string>>({});
@@ -40,6 +41,18 @@ const pwd = ref('');
 const s3Ak = ref('');
 const s3Sk = ref('');
 
+/** 主题色圆点的预览色（浅色模式下的取值，深色下由 CSS 变量接管） */
+function tintSwatch(t: string): string {
+  const v = TINTS[(t as TintName) in TINTS ? (t as TintName) : 'blue'];
+  return `rgb(${v.base})`;
+}
+
+/** 改主题色时立刻预览（存库前就能看到整个界面变色） */
+function onTintChange() {
+  mark();
+  setTint(cfg.tint);
+}
+
 /** 改图标配色时立刻预览（存库前就能看到效果） */
 function onLogoChange() {
   mark();
@@ -47,6 +60,10 @@ function onLogoChange() {
   if (v === 'color' || v === 'black' || v === 'white' || v === 'auto') logoSetting.value = v;
 }
 // 载入配置后同步一次，保证设置页里的预览和全局一致
+watch(
+  () => cfg.tint,
+  (v) => setTint(String(v || 'blue'))
+);
 watch(
   () => cfg.logoVariant,
   (v) => {
@@ -87,6 +104,7 @@ async function save() {
     r2BucketName: cfg.r2BucketName,
     storageQuotaGb: Number(cfg.storageQuotaGb),
     logoVariant: cfg.logoVariant,
+    tint: cfg.tint,
     s3Endpoint: cfg.s3Endpoint,
     s3Bucket: cfg.s3Bucket,
     s3Region: cfg.s3Region,
@@ -348,11 +366,35 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      <!-- 主题色：整个界面的主色 -->
+      <div class="field">
+        <label class="field-label">
+          主题色
+          <span class="block text-xs text-faint font-normal mt-0.5">整个界面的主色：按钮、导航选中、进度条、链接、开关</span>
+        </label>
+        <div class="flex items-center gap-3 flex-1 flex-wrap">
+          <select v-model="cfg.tint" class="input !flex-none !w-36" @change="onTintChange">
+            <option v-for="t in TINT_NAMES" :key="t" :value="t">{{ TINT_LABELS[t as TintName] }}</option>
+          </select>
+          <div class="flex items-center gap-1.5">
+            <i
+              v-for="t in TINT_NAMES"
+              :key="t"
+              class="w-6 h-6 rounded-full cursor-pointer transition-transform"
+              :class="cfg.tint === t ? 'ring-2 ring-offset-2 ring-faint scale-110' : ''"
+              :style="{ background: tintSwatch(t) }"
+              :title="TINT_LABELS[t as TintName]"
+              @click="cfg.tint = t; onTintChange()"
+            ></i>
+          </div>
+        </div>
+      </div>
+
       <!-- 品牌图标配色 -->
       <div class="field">
         <label class="field-label">
           图标配色
-          <span class="block text-xs text-faint font-normal mt-0.5">登录页、侧边栏、分享页与错误页的品牌图标</span>
+          <span class="block text-xs text-faint font-normal mt-0.5">只影响品牌图标本身，不动界面主色</span>
         </label>
         <div class="flex items-center gap-3 flex-1">
           <select v-model="cfg.logoVariant" class="input !flex-none !w-40" @change="onLogoChange">
@@ -387,9 +429,7 @@ onMounted(async () => {
     <!-- 保存栏 -->
     <div class="fixed bottom-0 left-[300px] right-0 bg-surface-container border-t border-outline-variant px-6 py-4 flex items-center gap-3 z-20 pb-safe stacked:left-0 stacked:px-3">
       <span v-if="dirty" class="w-2 h-2 rounded-full bg-warn flex-none"></span>
-      <span class="text-sm text-muted">
-        {{ dirty ? '有未保存的改动' : '改完点保存，会存进数据库（优先级高于环境变量，重新部署不会冲掉）' }}
-      </span>
+      <span class="text-sm text-muted">{{ dirty ? '有未保存的改动' : '已是最新' }}</span>
       <span class="flex-1"></span>
       <button class="btn btn-outlined" @click="load">放弃</button>
       <button class="btn btn-filled" @click="save">保存</button>

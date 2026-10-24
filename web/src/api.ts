@@ -95,6 +95,8 @@ export interface Config {
   storageQuotaGb: number;
   /** 品牌图标配色：color / black / white / auto */
   logoVariant: string;
+  /** 主题色（整个界面的主色） */
+  tint: string;
 }
 
 export interface StatusProbe {

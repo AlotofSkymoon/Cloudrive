@@ -135,6 +135,10 @@ export interface Cfg {
   s3ForcePathStyle: boolean;
   s3HasKey: boolean;
   storageQuotaGb: number;
+  /** 品牌图标配色：color / black / white / auto */
+  logoVariant?: string;
+  /** 主题色（整个界面的主色），见 web/src/theme.ts 的 TINTS */
+  tint?: string;
 }
 
 /** 每个配置项的来源，用于在设置页标注 */

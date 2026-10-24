@@ -83,6 +83,7 @@ export const SEED_DEFAULTS = {
   STORAGE_QUOTA_GB: '10',
   // 品牌图标配色：color（彩色）/ black（黑）/ white（白）/ auto（跟随系统深浅）
   LOGO_VARIANT: 'color',
+  TINT: 'blue',
 };
 
 // 只补缺失的键，已有的（用户改过的）一律不动
@@ -173,6 +174,15 @@ export async function configSources(env) {
 
 // 数据库设置（UI 里改过的）优先，环境变量作为初始默认值
 /** 图标配色只允许这几个值，其它（含空串）一律回落彩色 */
+/** 可选的主题色（与前端 web/src/theme.ts 的 TINTS 保持一致） */
+const TINT_NAMES_BACKEND = ['blue', 'purple', 'pink', 'red', 'orange', 'green', 'indigo', 'graphite'];
+
+/** 主题色：非法值回落蓝色，避免写坏 CSS 变量导致整站配色异常 */
+export function normalizeTint(v) {
+  const s = String(v == null ? '' : v).trim();
+  return TINT_NAMES_BACKEND.includes(s) ? s : 'blue';
+}
+
 export function normalizeLogoVariant(v) {
   const s = String(v || '').trim().toLowerCase();
   return s === 'black' || s === 'white' || s === 'auto' ? s : 'color';
@@ -204,6 +214,7 @@ export async function config(env) {
     s3HasKey: !!(pick('S3_ACCESS_KEY_ID', '') && pick('S3_SECRET_ACCESS_KEY', '')),
     storageQuotaGb: Number(pick('STORAGE_QUOTA_GB', '10')) || 0,
     logoVariant: normalizeLogoVariant(pick('LOGO_VARIANT', 'color')),
+    tint: normalizeTint(pick('TINT', 'blue')),
   };
 }
 
