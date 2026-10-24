@@ -38,8 +38,8 @@ test('package.json / page.ts / README / CHANGELOG 版本号一致', () => {
   assert.equal(changelogLatest(), pkg, `CHANGELOG 最新条目是 ${changelogLatest()}，package.json 是 ${pkg}`);
 });
 
-test('当前版本为 2.0.0', () => {
-  assert.equal(pkgVersion(), '2.0.0');
+test('当前版本为 2.0.1', () => {
+  assert.equal(pkgVersion(), '2.0.1');
 });
 
 test('页面渲染出的首屏数据带版本号', async () => {

@@ -1,5 +1,39 @@
 # 变更记录
 
+## 2.0.1 — 2026-10-24
+
+修 v2.0.0 遗留的两条测试失败，并清理了一批死样式。
+
+### 测试失败
+
+两条都是**断言没跟着改**，代码本身是对的：
+
+1. `animation.test.ts` 还在找 `<Transition name="view">`（从上方落下），但 v2.0.0 已改成 `push`（SwiftUI NavigationStack 风格）
+2. `responsive.test.ts` 断言主题色是 `#00639B`（M3 蓝），v2.0.0 已改成 `#007AFF`（iOS systemBlue）
+
+不过第 2 条暴露了一个**真问题**：`web/index.html` 的 `theme-color` 当时没跟着改，还停在 `#00639B`，和 `src/page.ts` 不一致——移动端地址栏着色会对不上。已修正，并把测试改成断言**两处相等且为 iOS blue**，以后改一处忘另一处会立刻报错。
+
+### 清理死样式
+
+v2.0.0 改完动效后，有几套定义了却没人用的过渡留在 CSS 里，容易让人误以为某处还在用：
+
+| 删除 | 原因 |
+| --- | --- |
+| `.view-*` | 被 `push` 取代 |
+| `.zoom-*` Transition 类 | 弹窗实际走 `.zoom-in` animation + `fade` 过渡，两套机制做同一件事 |
+| `.pop-*` | 从未被引用 |
+| `.toast-*` | 从未被引用 |
+
+`animation.test.ts` 相应调整：「弹窗 zoom in」改成检查 `@keyframes zoomIn` 和 `.zoom-in` 的回弹曲线；过渡清单从四类改为三类。
+
+新增一条测试**防止死样式重新出现**：扫描所有 `.vue` 里 `<Transition name="x">` 用到的名字，和 CSS 里定义的 `-enter-active` 做对比，定义了没用的直接失败。
+
+### 升级
+
+重新部署即可。
+
+---
+
 ## 2.0.0 — 2026-10-24
 
 界面从 **Material 3 / Cloudreve 风格** 改为 **SwiftUI / iOS 风格**，并新增自动深色模式。
