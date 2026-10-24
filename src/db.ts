@@ -81,6 +81,8 @@ export const SEED_DEFAULTS = {
   TURNSTILE_ENABLED: '0',
   // 容量上限（GB），仅用于侧栏进度条显示；0 = 不显示进度
   STORAGE_QUOTA_GB: '10',
+  // 品牌图标配色：color（彩色）/ black（黑）/ white（白）/ auto（跟随系统深浅）
+  LOGO_VARIANT: 'color',
 };
 
 // 只补缺失的键，已有的（用户改过的）一律不动
@@ -170,6 +172,12 @@ export async function configSources(env) {
 }
 
 // 数据库设置（UI 里改过的）优先，环境变量作为初始默认值
+/** 图标配色只允许这几个值，其它（含空串）一律回落彩色 */
+export function normalizeLogoVariant(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'black' || s === 'white' || s === 'auto' ? s : 'color';
+}
+
 export async function config(env) {
   const s = await allSettings(env);
   const pick = (key, def = '') => (s[key] != null && s[key] !== '' ? String(s[key]) : env[key] != null && env[key] !== '' ? String(env[key]) : String(def));
@@ -195,6 +203,7 @@ export async function config(env) {
     s3ForcePathStyle: pick('S3_FORCE_PATH_STYLE', 'true') !== 'false',
     s3HasKey: !!(pick('S3_ACCESS_KEY_ID', '') && pick('S3_SECRET_ACCESS_KEY', '')),
     storageQuotaGb: Number(pick('STORAGE_QUOTA_GB', '10')) || 0,
+    logoVariant: normalizeLogoVariant(pick('LOGO_VARIANT', 'color')),
   };
 }
 

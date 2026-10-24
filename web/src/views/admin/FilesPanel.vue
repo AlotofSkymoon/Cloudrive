@@ -549,6 +549,7 @@ onMounted(() => load(true));
 
     <!-- 上传任务面板（Cloudreve 式：右下角，逐任务显示进度 / 已传 / 速度） -->
     <div
+    <Transition name="sheet">
       v-if="showUploader"
       class="fixed right-6 bottom-6 w-[380px] bg-surface-container-lowest rounded-lg shadow-e3 z-50 overflow-hidden sheet stacked:left-3 stacked:right-3 stacked:bottom-3 stacked:w-auto compact:left-2 compact:right-2 compact:bottom-2"
     >
@@ -588,7 +589,7 @@ onMounted(() => load(true));
 
             <div class="h-1 bg-outline-variant rounded-full mt-2 overflow-hidden">
               <i
-                class="block h-full rounded-full transition-[width] duration-200"
+                class="bar-fill block h-full rounded-full"
                 :class="t.status === 'error' ? 'bg-error' : t.status === 'done' ? 'bg-primary' : 'bg-primary'"
                 :style="{ width: t.pct + '%' }"
               ></i>
@@ -620,10 +621,12 @@ onMounted(() => load(true));
         <div v-if="!uploading.length" class="px-4 py-8 text-center text-sm text-faint">暂无上传任务</div>
       </div>
     </div>
+    </Transition>
 
     <!-- 分享弹窗 -->
+    <Transition name="fade">
     <div v-if="shareIdx !== null" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60] stacked:items-end stacked:p-0" @click.self="shareIdx = null">
-      <div class="bg-surface rounded-lg w-full max-w-[420px] shadow-e3 max-h-[90vh] overflow-y-auto sheet stacked:rounded-b-none stacked:max-w-none">
+      <div class="zoom-in bg-surface rounded-lg w-full max-w-[420px] shadow-e3 max-h-[90vh] overflow-y-auto sheet stacked:rounded-b-none stacked:max-w-none">
         <div class="px-5 h-14 flex items-center gap-2 border-b border-rule">
           <h3 class="text-base font-medium m-0">{{ shareLink ? '分享已创建' : '创建分享' }}</h3>
           <button class="ml-auto text-faint text-xl leading-none hover:text-ink" @click="shareIdx = null">×</button>
@@ -674,10 +677,13 @@ onMounted(() => load(true));
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- 灯箱 -->
+    <Transition name="fade">
     <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = null">
-      <img :src="`/preview/${lightbox}`" class="max-w-full max-h-full rounded" alt="" />
+      <img :src="`/preview/${lightbox}`" class="zoom-in max-w-full max-h-full rounded" alt="" />
     </div>
+    </Transition>
   </section>
 </template>

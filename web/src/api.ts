@@ -93,6 +93,8 @@ export interface Config {
   s3ForcePathStyle: boolean;
   s3HasKey: boolean;
   storageQuotaGb: number;
+  /** 品牌图标配色：color / black / white / auto */
+  logoVariant: string;
 }
 
 export interface StatusProbe {

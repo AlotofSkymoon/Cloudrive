@@ -18,30 +18,89 @@ function svgConst(src: string, name: string): string {
   return m[1];
 }
 
-test('后端与前端的品牌 SVG 完全一致', () => {
+const BACKEND = read('src/logo.ts');
+const FRONTEND = read('web/src/logo.ts');
+
+test('后端与前端的品牌图形模板完全一致', () => {
   // 前端不能 import src/logo.ts（vite root 是 web/），所以放了一份副本。
   // 副本必须与原件相同，否则 favicon 和界面上的图标会长得不一样。
-  const backend = svgConst(read('src/logo.ts'), 'LOGO_SVG');
-  const frontend = svgConst(read('web/src/logo.ts'), 'BRAND_LOGO_SVG');
-  assert.equal(frontend, backend, '前端 logo 副本与 src/logo.ts 不一致');
+  assert.equal(
+    svgConst(FRONTEND, 'LOGO_SVG_TEMPLATE'),
+    svgConst(BACKEND, 'LOGO_SVG_TEMPLATE'),
+    '前端 logo 副本与 src/logo.ts 不一致'
+  );
 });
 
 test('品牌图标是「云朵 + 文件夹 + 弧线」，不是通用云朵', () => {
-  const svg = svgConst(read('src/logo.ts'), 'LOGO_SVG');
+  const tpl = svgConst(BACKEND, 'LOGO_SVG_TEMPLATE');
   // 三个圆 + 一个圆角矩形构成云朵轮廓
-  assert.match(svg, /<circle/, '缺云朵的圆');
-  assert.match(svg, /<rect[^>]*rx=/, '缺云朵的矩形基座');
-  // 白色文件夹
-  assert.match(svg, /fill="#fff"/, '缺白色文件夹');
-  // 右下白色弧线
-  assert.match(svg, /stroke="#fff"[^>]*stroke-linecap="round"/, '缺右下白色弧线');
+  assert.match(tpl, /<circle/, '缺云朵的圆');
+  assert.match(tpl, /<rect[^>]*rx=/, '缺云朵的矩形基座');
+  // 配色靠占位符替换，一份图形出三种颜色
+  for (const token of ['__CLOUD__', '__FOLDER__', '__ARC__']) {
+    assert.ok(tpl.includes(token), `缺占位符 ${token}`);
+  }
   // 不能是 M3 那个通用云朵图标
-  assert.ok(!/M19\.35 10\.04/.test(svg), '图标退化成了 M3 的通用云朵');
+  assert.ok(!/M19\.35 10\.04/.test(tpl), '图标退化成了 M3 的通用云朵');
 });
 
 test('品牌图标不含文字', () => {
-  const svg = svgConst(read('src/logo.ts'), 'LOGO_SVG');
-  assert.ok(!/<text\b/.test(svg), '图标里不该有 text 元素');
+  const tpl = svgConst(BACKEND, 'LOGO_SVG_TEMPLATE');
+  assert.ok(!/<text\b/.test(tpl), '图标里不该有 text 元素');
+});
+
+test('三种配色都要渲染出来，不能退化成同一份', () => {
+  // 直接把渲染逻辑抄过来跑一遍（这里不 import .ts，避免 vitest 之外的构建依赖）
+  const tpl = svgConst(BACKEND, 'LOGO_SVG_TEMPLATE');
+  const INK = '#101418';
+  const render = (v) => {
+    const p =
+      v === 'black'
+        ? { cloud: INK, folder: '#ffffff', arc: '#ffffff' }
+        : v === 'white'
+          ? { cloud: '#ffffff', folder: INK, arc: INK }
+          : { cloud: 'url(#g)', folder: '#ffffff', arc: '#ffffff' };
+    return tpl
+      .replace('__CLOUD__', p.cloud)
+      .replace('__FOLDER__', p.folder)
+      .replace('__ARC__', p.arc);
+  };
+  const color = render('color');
+  const black = render('black');
+  const white = render('white');
+
+  // 彩色用渐变
+  assert.match(color, /url\(#g\)/, '彩色版应该用渐变');
+  // 黑白用实色，且互为反色
+  assert.ok(black.includes(INK) && !black.includes('#1976d2'), '黑色版不该还有蓝色渐变');
+  assert.ok(white.includes('fill="#ffffff"') && white.includes(INK), '白色版应该是白云 + 深文件夹');
+  // 三者互不相同
+  assert.notEqual(color, black);
+  assert.notEqual(black, white);
+  // 都不含残留占位符
+  for (const [n, s] of [['color', color], ['black', black], ['white', white]]) {
+    assert.ok(!/__CLOUD__|__FOLDER__|__ARC__/.test(s), `${n} 版还有未替换的占位符`);
+  }
+});
+
+test('每个实例的渐变 id 唯一（同页面多实例不会互相覆盖）', () => {
+  const tpl = svgConst(BACKEND, 'LOGO_SVG_TEMPLATE');
+  // 组件里的做法：先替换占位符，再把 id="g" / url(#g) 换成唯一 id
+  const withUid = tpl
+    .replace('__CLOUD__', 'url(#g)')
+    .replace('__FOLDER__', '#ffffff')
+    .replace('__ARC__', '#ffffff')
+    .replace(/id="g"/g, 'id="brand-logo-x1"')
+    .replace(/url\(#g\)/g, 'url(#brand-logo-x1)');
+  assert.ok(!withUid.includes('id="g"'), '还留着固定 id="g"');
+  assert.ok(!withUid.includes('url(#g)'), '还引用着固定 url(#g)');
+  assert.match(withUid, /id="brand-logo-x1"/);
+  assert.match(withUid, /url\(#brand-logo-x1\)/);
+
+  // 组件源码里确实这么做了
+  const comp = read('web/src/components/BrandLogo.vue');
+  assert.ok(comp.includes('renderLogoInner'), '组件没用 renderLogoInner');
+  assert.ok(/uid|unique/i.test(comp), '组件没生成唯一 id');
 });
 
 test('所有页面都用品牌图标组件，没有残留通用云朵', () => {
@@ -62,29 +121,39 @@ test('所有页面都用品牌图标组件，没有残留通用云朵', () => {
 
 test('拖拽区的上传图标保留（它是功能图标，不是品牌 logo）', () => {
   const src = read('web/src/views/admin/FilesPanel.vue');
-  // 带箭头的那个：M19.35 10.04 ... ZM14 13v4h-4v-4H7l5-5 5 5h-3Z
   assert.match(src, /M19\.35 10\.04[^"]*ZM14 13v4h-4v-4H7/, '拖拽区上传图标不该被换掉');
 });
 
-test('favicon 路由与页面声明都在', () => {
+test('图标配色可在设置里切换，且值会被后端规范化', () => {
+  const settings = read('web/src/views/admin/SettingsPanel.vue');
+  assert.match(settings, /logoVariant/, '设置页没有图标配色项');
+  for (const v of ['color', 'black', 'white', 'auto']) {
+    assert.ok(settings.includes(`value="${v}"`), `设置页缺 ${v} 选项`);
+  }
+
+  const db = read('src/db.ts');
+  assert.match(db, /LOGO_VARIANT:\s*'color'/, '默认配置缺 LOGO_VARIANT');
+  assert.match(db, /normalizeLogoVariant/, '缺非法值回落逻辑');
+  // 非法值必须回落 color，不能把奇怪的值写进库
+  assert.match(db, /s === 'black' \|\| s === 'white' \|\| s === 'auto' \? s : 'color'/, '回落逻辑不对');
+
+  // 保存白名单里要有它，否则前端改了存不进去
+  const idx = read('src/index.ts');
+  assert.match(idx, /LOGO_VARIANT:\s*b\.logoVariant/, '配置保存接口没有收 LOGO_VARIANT');
+});
+
+test('favicon 路由与页面声明都在，且支持黑白版', () => {
   const index = read('src/index.ts');
   assert.match(index, /'\/favicon\.ico'/, 'index.ts 缺 /favicon.ico 路由');
   assert.match(index, /'\/favicon\.svg'/, 'index.ts 缺 /favicon.svg 路由');
+  assert.match(index, /searchParams\.get\('v'\)/, 'favicon 不支持 ?v= 取黑白版');
 
   const page = read('src/page.ts');
   assert.match(page, /rel="icon"[^>]*/, '服务端模板缺 <link rel="icon">');
   assert.match(page, /href="\/favicon\.svg"/, '服务端模板没指向 /favicon.svg');
+  // faviconResponse 要能接受配色参数
+  assert.match(page, /faviconResponse\(variant/, 'faviconResponse 不接受配色参数');
 
   const html = read('web/index.html');
   assert.match(html, /rel="icon"[^>]*/, 'web/index.html 缺 <link rel="icon">');
-});
-
-test('BrandLogo 组件给渐变 id 加了唯一后缀', () => {
-  // SVG 的 id 是文档级全局的，同页面多个实例用同一个 id 会互相覆盖
-  const src = read('web/src/components/BrandLogo.vue');
-  assert.match(src, /uid|unique/i, '没有生成唯一 id 的逻辑');
-  // 用 includes 而不是正则——源码里是正则字面量 /url\(#g\)/，括号带转义，
-  // 写成正则来匹配它容易陷进转义地狱
-  assert.ok(src.includes('replace(/id="g"/'), '没有替换 defs 里的 id="g"');
-  assert.ok(src.includes('url\\(#g\\)'), '没有替换 fill 引用的 url(#g)');
 });

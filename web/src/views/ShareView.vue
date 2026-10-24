@@ -166,8 +166,10 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
     <div class="mt-5 text-xs text-faint text-center">由 Cloudrive 提供 · 下载走直链</div>
 
     <!-- 灯箱 -->
+    <Transition name="fade">
     <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = false">
-      <img :src="`/raw/${code}`" class="max-w-full max-h-full rounded" alt="" />
+      <img :src="`/raw/${code}`" class="zoom-in max-w-full max-h-full rounded" alt="" />
     </div>
+    </Transition>
   </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
+import { loadAppearance } from './theme';
 import LoginView from './views/LoginView.vue';
 import AdminView from './views/AdminView.vue';
 import ShareView from './views/ShareView.vue';
@@ -19,6 +20,11 @@ const current = computed(() => {
     default:
       return LoginView;
   }
+});
+
+// 拉一次外观配置（图标配色等）。未登录时拿不到，静默用默认值。
+onMounted(() => {
+  loadAppearance();
 });
 </script>
 

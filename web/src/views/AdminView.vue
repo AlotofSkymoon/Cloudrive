@@ -176,7 +176,7 @@ onMounted(() => {
       <div class="flex-none border-t border-outline-variant px-4 py-4 compact:hidden stacked:flex stacked:flex-row stacked:items-center stacked:gap-3 stacked:py-2"
         <div class="text-xs text-muted mb-2">存储空间</div>
         <div class="h-1.5 bg-outline-variant rounded-full overflow-hidden mb-2">
-          <i class="block h-full bg-primary rounded-full transition-[width] duration-300" :style="{ width: usedPct + '%' }"></i>
+          <i class="bar-fill block h-full bg-primary rounded-full" :style="{ width: usedPct + '%' }"></i>
         </div>
         <div class="text-xs text-muted font-mono">{{ usageText }}</div>
         <div class="flex items-center gap-2 mt-3">
@@ -208,26 +208,33 @@ onMounted(() => {
       </header>
 
       <div class="flex-1 overflow-y-auto px-6 py-5 stacked:px-3 stacked:overflow-visible pb-safe"
-        <FilesPanel
-          v-if="isFileView"
-          :filter="currentFilter"
-          @select="onSelect"
-          @changed="loadStats()"
-          @deleted="onDeleted"
-        />
-        <SharesPanel v-else-if="active === 'shares'" @changed="loadStats()" />
-        <LogsPanel v-else-if="active === 'logs'" />
-        <BansPanel v-else-if="active === 'bans'" @changed="loadBansCount()" />
-        <SettingsPanel v-else-if="active === 'settings'" />
+        <!-- 切换视图时新内容从上方顺滑落下（:key 变化才触发过渡） -->
+        <Transition name="view" mode="out-in">
+          <div :key="active">
+            <FilesPanel
+              v-if="isFileView"
+              :filter="currentFilter"
+              @select="onSelect"
+              @changed="loadStats()"
+              @deleted="onDeleted"
+            />
+            <SharesPanel v-else-if="active === 'shares'" @changed="loadStats()" />
+            <LogsPanel v-else-if="active === 'logs'" />
+            <BansPanel v-else-if="active === 'bans'" @changed="loadBansCount()" />
+            <SettingsPanel v-else-if="active === 'settings'" />
+          </div>
+        </Transition>
       </div>
     </main>
 
     <!-- 详情面板：≥1200px 内联在右侧，<1200px 自动变底部抽屉（组件内部判断） -->
-    <DetailPanel
-      v-if="isFileView && selected"
-      :file="selected"
-      @close="selected = null"
-      @deleted="onDeleted"
-    />
+    <Transition name="fade">
+      <DetailPanel
+        v-if="isFileView && selected"
+        :file="selected"
+        @close="selected = null"
+        @deleted="onDeleted"
+      />
+    </Transition>
   </div>
 </template>

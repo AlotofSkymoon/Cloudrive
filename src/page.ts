@@ -1,9 +1,9 @@
 // 页面外壳：把前端（Vue3 + Tailwind 的构建产物）连同首屏数据一起吐出去。
 // 前端构建一次，产物内联在这里，Worker 不需要静态资源绑定。
 import { APP_JS, APP_CSS } from './web-assets.js';
-import { LOGO_SVG } from './logo.js';
+import { renderLogo } from './logo.js';
 
-export const VERSION = '1.7.1';
+export const VERSION = '1.8.0';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -36,9 +36,10 @@ export function spaHtml(o: SpaOptions): string {
 </body></html>`;
 }
 
-/* ---------- 站点图标（云朵 + 文件夹，不带文字） ---------- */
-export function faviconResponse(): Response {
-  return new Response(LOGO_SVG, {
+/* ---------- 站点图标（云朵 + 文件夹，不带文字） ----------
+   默认彩色；传 black / white 取黑白版。 */
+export function faviconResponse(variant = 'color'): Response {
+  return new Response(renderLogo(variant), {
     headers: {
       'content-type': 'image/svg+xml; charset=utf-8',
       'cache-control': 'public, max-age=86400',

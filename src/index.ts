@@ -97,7 +97,10 @@ export default {
       );
     }
     // 站点图标：云朵 + 文件夹（不带文字）
-    if (p === '/favicon.ico' || p === '/favicon.svg' || p === '/logo.svg') return faviconResponse();
+    // 站点图标：默认彩色；?v=black / ?v=white 取黑白版（图标配色设为 auto 时可用）
+    if (p === '/favicon.ico' || p === '/favicon.svg' || p === '/logo.svg') {
+      return faviconResponse(db.normalizeLogoVariant(url.searchParams.get('v')));
+    }
 
     // ---------- 登录 / 登出 ----------
     if (p === '/api/login' && method === 'POST') {
@@ -533,6 +536,7 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
       S3_FORCE_PATH_STYLE: b.s3ForcePathStyle,
       S3_ACCESS_KEY_ID: b.s3AccessKeyId,
       S3_SECRET_ACCESS_KEY: b.s3SecretAccessKey,
+      LOGO_VARIANT: b.logoVariant ? db.normalizeLogoVariant(b.logoVariant) : null,
     };
     // 保存前先把要写入的值合并起来试算一次，配置不完整就直接拒绝，
     // 免得存进去之后整个网盘打不开

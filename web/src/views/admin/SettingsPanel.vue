@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import { api, type Config } from '../../api';
+import { logoSetting } from '../../theme';
+import BrandLogo from '../../components/BrandLogo.vue';
 
 // 配置全部存在数据库里，在设置页改；环境变量只是兜底。
 // 每项右侧的小标签标着当前值来自哪一层。
@@ -25,6 +27,7 @@ const cfg = reactive<Config>({
   s3ForcePathStyle: true,
   s3HasKey: false,
   storageQuotaGb: 10,
+  logoVariant: 'color',
 });
 
 const sources = ref<Record<string, string>>({});
@@ -36,6 +39,21 @@ const pwd = ref('');
 // S3 密钥是「留空不改」，单独用两个输入框存，不参与 v-model 回填
 const s3Ak = ref('');
 const s3Sk = ref('');
+
+/** 改图标配色时立刻预览（存库前就能看到效果） */
+function onLogoChange() {
+  mark();
+  const v = String(cfg.logoVariant || 'color');
+  if (v === 'color' || v === 'black' || v === 'white' || v === 'auto') logoSetting.value = v;
+}
+// 载入配置后同步一次，保证设置页里的预览和全局一致
+watch(
+  () => cfg.logoVariant,
+  (v) => {
+    const s = String(v || 'color');
+    if (s === 'color' || s === 'black' || s === 'white' || s === 'auto') logoSetting.value = s;
+  }
+);
 
 async function load() {
   loading.value = true;
@@ -68,6 +86,7 @@ async function save() {
     storageDriver: cfg.storageDriver,
     r2BucketName: cfg.r2BucketName,
     storageQuotaGb: Number(cfg.storageQuotaGb),
+    logoVariant: cfg.logoVariant,
     s3Endpoint: cfg.s3Endpoint,
     s3Bucket: cfg.s3Bucket,
     s3Region: cfg.s3Region,
@@ -327,6 +346,22 @@ onMounted(async () => {
             </label>
             <input v-model="s3Sk" type="password" class="input !flex-none !w-[240px]" placeholder="留空不改" />
           </div>
+        </div>
+      </div>
+      <!-- 品牌图标配色：彩色 / 黑 / 白 / 跟随系统 -->
+      <div class="field">
+        <label class="field-label">
+          图标配色
+          <span class="block text-xs text-faint font-normal mt-0.5">登录页、侧边栏、分享页与错误页的品牌图标</span>
+        </label>
+        <div class="flex items-center gap-3 flex-1">
+          <select v-model="cfg.logoVariant" class="input !flex-none !w-40" @change="onLogoChange">
+            <option value="color">彩色</option>
+            <option value="black">黑色</option>
+            <option value="white">白色</option>
+            <option value="auto">跟随系统</option>
+          </select>
+          <BrandLogo :size="30" class="ml-1" />
         </div>
       </div>
 
