@@ -1,11 +1,13 @@
 name = "filecove"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
 
 # 构建前端（Vue3 + Tailwind）并把产物内联成 src/web-assets.ts。
 # Actions 部署和控制台「连接 GitHub」部署都会执行它。
+# 注意：必须放在所有顶层键（name / main / compatibility_date）之后，
+# 否则 TOML 会把它们当成 [build] 表的字段，导致「Missing entry-point」。
 [build]
 command = "npm install && npm run build"
-main = "src/index.ts"
-compatibility_date = "2025-06-01"
 
 # 绑定 R2 存储桶（R2 绑定模式时使用；bucket_name 按你创建的桶名填写）
 [[r2_buckets]]

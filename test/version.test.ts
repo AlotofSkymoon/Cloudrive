@@ -38,8 +38,8 @@ test('package.json / page.ts / README / CHANGELOG 版本号一致', () => {
   assert.equal(changelogLatest(), pkg, `CHANGELOG 最新条目是 ${changelogLatest()}，package.json 是 ${pkg}`);
 });
 
-test('当前版本为 1.3.0', () => {
-  assert.equal(pkgVersion(), '1.3.0');
+test('当前版本为 1.3.1', () => {
+  assert.equal(pkgVersion(), '1.3.1');
 });
 
 test('页面渲染出的首屏数据带版本号', async () => {
@@ -60,6 +60,7 @@ test('文档与源码里不留旧版本号痕迹', () => {
     'package.json',
     'src/index.ts',
     'src/page.ts',
+    'wrangler.toml',
     'src/db.ts',
     'src/storage.ts',
     'src/logo.ts',

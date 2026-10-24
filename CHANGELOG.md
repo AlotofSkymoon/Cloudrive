@@ -1,5 +1,17 @@
 # 变更记录
 
+## 1.3.1 — 2026-10-24
+
+修复部署报错 `Missing entry-point to Worker script`。
+
+**原因**：上一版往 `wrangler.toml` 加 `[build]` 时插在了 `name` 后面，TOML 里的表头会一直生效到下一个表头，于是 `main` 和 `compatibility_date` 被当成了 `[build]` 表的字段——wrangler 只认这两个字段名，多出来的会警告 `Unexpected fields found in build field`，同时又找不到顶层入口点，直接部署失败。
+
+**修复**：把 `main` / `compatibility_date` 移到 `[build]` 之前，两者都回到顶层。
+
+**新增测试**：`test/wrangler-config.test.ts` 校验 wrangler.toml 的结构——入口点在顶层、没被 `[build]` 吞掉、`[build]` 有 command、R2/D1 绑定完整、没有声明 `[vars]`。以后再动这个文件会直接测出来。
+
+---
+
 ## 1.3.0 — 2026-10-24
 
 界面改成 **Cloudreve 的三栏布局**：左侧导航抽屉 + 中间文件网格 + 右侧详情面板。功能与 API 不变。
