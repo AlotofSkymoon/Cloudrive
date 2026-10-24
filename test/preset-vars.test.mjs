@@ -77,7 +77,7 @@ const parseEnvKeys = (txt) => {
   return out;
 };
 
-// v0.6.1 起默认配置由 Worker 写进 D1，Actions 不再往 Worker 铺默认值
+// 默认配置由 Worker 写进 D1，Actions 不再往 Worker 铺默认值
 test('不配置时不铺任何默认值', async () => {
   const r = await run({ CF_API_BASE: '', CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_ACCOUNT_ID: '' });
   assert.equal(r.code, 0, r.out);

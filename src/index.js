@@ -146,8 +146,8 @@ export default {
       const row = await db.get(env, 'SELECT * FROM files WHERE id = ?', m[1]);
       if (!row) return new Response('文件不存在', { status: 404 });
       // 预览走 Worker 代理，不走直链。
-      // 之前优先 302 到 PUBLIC_BASE_URL，一旦那个域名没公开访问（很常见），
-      // 缩略图就全部 404 —— 也就是「文件有时候加载不出来」。
+      // 预览走 Worker 代理，不走直链：公网域名一旦没开公开访问（很常见），
+      // 直链就会 404，缩略图全部加载不出来。
       // 预览流量很小，先保证一定能显示；下载仍然走直链。
       const obj = await storage.get(row.key);
       if (!obj) {
@@ -444,7 +444,7 @@ async function adminApi(request, env, ctx, storage, cfg, p, method, url) {
     const s = await db.get(env, 'SELECT COUNT(*) AS c FROM shares');
     const d = await db.get(env, "SELECT COUNT(*) AS c FROM logs WHERE action = 'download'");
     const traffic = await limit.monthlyTraffic(env);
-    // 已用容量：之前这里没返回 bytes，前端 fmt(d.bytes||0) 永远是 0 B
+    // 已用容量：files 表 size 求和，前端用它在侧栏显示进度
     const b = await db.get(env, 'SELECT COALESCE(SUM(size), 0) AS t FROM files');
     return json({
       ok: true,

@@ -126,7 +126,7 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
 }
 
 // 5.8 预览必须优先走 Worker 代理，不能先跳直链
-// （之前 302 到 PUBLIC_BASE_URL，一旦那个域名没公开访问，缩略图就全 404，
+// （若跳 PUBLIC_BASE_URL，一旦那个域名没公开访问，缩略图就全 404，
 //   表现就是「文件有时候加载不出来」）
 {
   const cookieStr3 = Object.values(jar).filter(Boolean).join('; ');
@@ -165,7 +165,7 @@ assert('对象直链使用 PUBLIC_BASE_URL', link.url.startsWith('https://cdn.ex
   assert('自检给出生效中的域名', diag.effectiveBase === 'https://cdn.example.com', JSON.stringify(diag));
 
   // 只在数据库里配、环境变量没有时，存储层也必须读到
-  // （v0.6.1 之前 storage 是用原始 env 建的，读不到数据库的值，
+  // （storage 必须读合并后的配置，否则读不到数据库里的值，
   //   于是设置页显示有、点直链却提示没配——就是这个问题）
   await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('PUBLIC_BASE_URL', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind('https://cdn.example.com').run();
   const envDbOnly = { ...env, PUBLIC_BASE_URL: '' };
