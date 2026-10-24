@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'preset-vars.mjs');
 
 function run(env) {
-  const dir = mkdtempSync(join(tmpdir(), 'filecove-vars-'));
+  const dir = mkdtempSync(join(tmpdir(), 'cloudrive-vars-'));
   const envFile = join(dir, 'gh-env');
   const outFile = join(dir, 'gh-output');
   writeFileSync(envFile, '');

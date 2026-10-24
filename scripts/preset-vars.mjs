@@ -101,7 +101,7 @@ export async function fetchExistingVars({ token, account, script }) {
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const env = process.env;
-  const script = env.CF_WORKER_NAME || 'filecove';
+  const script = env.CF_WORKER_NAME || 'cloudrive';
 
   const { pairs, errors } = parsePreset(env.PRESET_VARS);
   if (errors.length) {

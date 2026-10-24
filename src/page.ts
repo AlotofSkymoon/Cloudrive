@@ -3,7 +3,7 @@
 import { APP_JS, APP_CSS } from './web-assets.js';
 import { LOGO_SVG } from './logo.js';
 
-export const VERSION = '1.4.0';
+export const VERSION = '1.5.0';
 
 export type ViewName = 'admin' | 'login' | 'share' | 'error';
 
@@ -20,7 +20,7 @@ function esc(s: unknown): string {
 
 export function spaHtml(o: SpaOptions): string {
   const boot = JSON.stringify({ view: o.view, version: VERSION, ...(o.boot || {}) });
-  const title = o.title || 'Filecove';
+  const title = o.title || 'Cloudrive';
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -31,7 +31,7 @@ export function spaHtml(o: SpaOptions): string {
 <style>${APP_CSS}</style></head>
 <body>
 <div id="app"></div>
-<script>window.__FILECOVE__=${boot};</script>
+<script>window.__CLOUDRIVE__=${boot};</script>
 <script type="module">${APP_JS}</script>
 </body></html>`;
 }
@@ -53,7 +53,7 @@ export function errorResponse(code: string | number, msg: string): Response {
   return new Response(
     spaHtml({
       view: 'error',
-      title: `${code} · Filecove`,
+      title: `${code} · Cloudrive`,
       boot: { error: { code: String(code), msg } },
     }),
     { status: ok ? status : 200, headers: { 'content-type': 'text/html; charset=utf-8' } }

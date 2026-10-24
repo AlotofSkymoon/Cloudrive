@@ -1,4 +1,4 @@
--- Filecove 数据库结构（Worker 首次运行时会自动建表，此文件用于手动初始化 / 远程执行）
+-- Cloudrive 数据库结构（Worker 首次运行时会自动建表，此文件用于手动初始化 / 远程执行）
 CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY,
   key TEXT NOT NULL UNIQUE,

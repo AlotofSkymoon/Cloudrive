@@ -1,4 +1,4 @@
-name = "filecove"
+name = "cloudrive"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
@@ -8,6 +8,10 @@ compatibility_date = "2025-06-01"
 # 否则 TOML 会把它们当成 [build] 表的字段，导致「Missing entry-point」。
 [build]
 command = "npm install && npm run build"
+
+# 注意：下面的 R2 桶名与 D1 库名保持 filecove 不变——数据在里面。
+# 项目改名为 Cloudrive 只影响 Worker 名与界面显示，改这两个名字会导致
+# 自动建库逻辑新建一个空库/空桶，已上传的文件就找不到了。
 
 # 绑定 R2 存储桶（R2 绑定模式时使用；bucket_name 按你创建的桶名填写）
 [[r2_buckets]]

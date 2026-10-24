@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'ci-secrets.mjs');
 
 function run(env) {
-  const dir = mkdtempSync(join(tmpdir(), 'filecove-secrets-'));
+  const dir = mkdtempSync(join(tmpdir(), 'cloudrive-secrets-'));
   const outFile = join(dir, 'gh-output');
   writeFileSync(outFile, '');
   return new Promise((resolve) => {

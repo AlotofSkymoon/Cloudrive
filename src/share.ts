@@ -66,7 +66,7 @@ export async function sharePage(request, env, ctx, storage, cfg, code) {
   return html(
     spaHtml({
       view: 'share',
-      title: `${share.name} · Filecove`,
+      title: `${share.name} · Cloudrive`,
       boot: {
         code,
         share: {

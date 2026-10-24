@@ -5,7 +5,7 @@ import AdminView from './views/AdminView.vue';
 import ShareView from './views/ShareView.vue';
 import ErrorView from './views/ErrorView.vue';
 
-const boot = window.__FILECOVE__ || { view: 'login', version: '' };
+const boot = window.__CLOUDRIVE__ || { view: 'login', version: '' };
 
 // 服务端决定渲染哪个视图：admin / login / share / error
 const current = computed(() => {

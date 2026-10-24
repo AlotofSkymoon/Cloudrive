@@ -1,4 +1,4 @@
-name: Deploy Filecove
+name: Deploy Cloudrive
 
 on:
   push:
@@ -83,7 +83,7 @@ jobs:
           # 用于查询 Worker 上已有哪些密钥，好把控制台配的值保留下来
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_WORKER_NAME: filecove
+          CF_WORKER_NAME: cloudrive
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}

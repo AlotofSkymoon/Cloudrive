@@ -46,7 +46,7 @@ function assert(name, cond, extra = '') {
 let r = await call('/');
 let body = await r.text();
 {
-  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  const boot = /window\.__CLOUDRIVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
   assert('未登录访问 / 返回登录页', !!boot && JSON.parse(boot[1]).view === 'login', body.slice(0, 120));
   // 登录页还要带上状态探针，才能提示「没设密码 / HTTP 访问」
   assert('登录页注入了状态探针', !!boot && !!JSON.parse(boot[1]).status, '缺少 status');
@@ -77,7 +77,7 @@ assert('正确密码登录成功', (await r.json()).ok === true && (jar.adm || '
 r = await call('/');
 body = await r.text();
 {
-  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  const boot = /window\.__CLOUDRIVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
   const b = boot ? JSON.parse(boot[1]) : null;
   assert('已登录访问 / 返回管理后台', !!b && b.view === 'admin', body.slice(0, 120));
   assert('后台页带上了存储信息', !!b && !!b.driver && !!b.bucket, JSON.stringify(b));
@@ -218,7 +218,7 @@ const code = sh.code;
 r = await call(`/s/${code}`);
 body = await r.text();
 {
-  const boot = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
+  const boot = /window\.__CLOUDRIVE__=(\{[\s\S]*?\});<\/script>/.exec(body);
   const b = boot ? JSON.parse(boot[1]) : null;
   assert('分享页渲染正常', !!b && b.view === 'share', body.slice(0, 120));
   assert('分享页带上了文件信息', !!b && b.share && b.share.file_name === '你好 world.txt', JSON.stringify(b?.share));

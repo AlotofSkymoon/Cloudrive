@@ -111,7 +111,7 @@ onMounted(() => {
         <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary flex-none" fill="currentColor">
           <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
         </svg>
-        <span class="text-lg tracking-tight">Filecove</span>
+        <span class="text-lg tracking-tight">Cloudrive</span>
       </div>
 
       <nav class="flex-1 overflow-y-auto pb-2 max-[900px]:flex max-[900px]:gap-1 max-[900px]:overflow-x-auto max-[900px]:flex-none">

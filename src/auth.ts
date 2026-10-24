@@ -3,6 +3,8 @@ import { sha256Hex, hmacHex, b64urlEncode, b64urlDecode, nowSec, timingSafeEqual
 import * as db from './db.js';
 
 function secret(env) {
+  // 注意：这个默认值里的 'filecove' 是历史遗留的字面量，不要改成项目新名字。
+  // 它是会话密钥的一部分，改动会让所有已登录会话立即失效（所有人被登出）。
   return env.ADMIN_PASSWORD || env.SESSION_SECRET || 'filecove-default-secret';
 }
 
@@ -50,6 +52,9 @@ export async function isAdmin(request, env) {
 }
 
 export async function hashPassword(password, salt) {
+  // 注意：末尾的 'filecove' 是哈希 pepper，绝不能改。
+  // 它是已存 admin_hash 的一部分，改动后数据库里旧的密码哈希全部对不上，
+  // 表现为「密码明明对却登不进」。改名时只改显示名，不动这里。
   return await sha256Hex(`${salt}:${password}:filecove`);
 }
 

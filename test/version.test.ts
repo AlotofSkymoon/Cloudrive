@@ -38,15 +38,15 @@ test('package.json / page.ts / README / CHANGELOG 版本号一致', () => {
   assert.equal(changelogLatest(), pkg, `CHANGELOG 最新条目是 ${changelogLatest()}，package.json 是 ${pkg}`);
 });
 
-test('当前版本为 1.4.0', () => {
-  assert.equal(pkgVersion(), '1.4.0');
+test('当前版本为 1.5.0', () => {
+  assert.equal(pkgVersion(), '1.5.0');
 });
 
 test('页面渲染出的首屏数据带版本号', async () => {
   const { spaHtml } = await import('../src/page');
   const v = uiVersion();
   for (const view of ['admin', 'login', 'share', 'error']) {
-    const m = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(spaHtml({ view }));
+    const m = /window\.__CLOUDRIVE__=(\{[\s\S]*?\});<\/script>/.exec(spaHtml({ view }));
     assert.ok(m, `${view} 页没有注入首屏数据`);
     assert.equal(JSON.parse(m[1]).version, v, `${view} 页注入的版本号不对`);
   }

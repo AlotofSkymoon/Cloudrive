@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 import { spaHtml, errorResponse, faviconResponse } from '../src/page';
 
 function parseBoot(html: string) {
-  const m = /window\.__FILECOVE__=(\{[\s\S]*?\});<\/script>/.exec(html);
-  assert.ok(m, '页面里找不到 window.__FILECOVE__ 注入');
+  const m = /window\.__CLOUDRIVE__=(\{[\s\S]*?\});<\/script>/.exec(html);
+  assert.ok(m, '页面里找不到 window.__CLOUDRIVE__ 注入');
   return JSON.parse(m[1]);
 }
 

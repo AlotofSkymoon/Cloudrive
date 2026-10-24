@@ -12,7 +12,7 @@ import { createServer } from 'node:http';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(root, 'scripts', 'setup-resources.mjs');
 
-const TOML = (id) => `name = "filecove"
+const TOML = (id) => `name = "cloudrive"
 main = "src/index.js"
 
 [[r2_buckets]]
@@ -65,7 +65,7 @@ exit 0
 }
 
 function prepare(id) {
-  const dir = mkdtempSync(join(tmpdir(), 'filecove-setup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'cloudrive-setup-'));
   mkdirSync(join(dir, 'scripts'), { recursive: true });
   writeFileSync(join(dir, 'scripts', 'setup-resources.mjs'), readFileSync(SCRIPT));
   writeFileSync(join(dir, 'wrangler.toml'), TOML(id));

@@ -55,7 +55,7 @@ export async function fetchExistingSecrets({ token, account, script }) {
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const env = process.env;
-  const script = env.CF_WORKER_NAME || 'filecove';
+  const script = env.CF_WORKER_NAME || 'cloudrive';
   let existing = await fetchExistingSecrets({
     token: (env.CLOUDFLARE_API_TOKEN || '').trim(),
     account: (env.CLOUDFLARE_ACCOUNT_ID || '').trim(),

@@ -96,7 +96,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
       <svg width="26" height="26" viewBox="0 0 24 24" class="text-primary" fill="currentColor">
         <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4a7.48 7.48 0 0 0-6.63 4.04A5.996 5.996 0 0 0 6 20h13a4.99 4.99 0 0 0 .35-9.96Z" />
       </svg>
-      <span class="text-lg font-medium tracking-tight">Filecove</span>
+      <span class="text-lg font-medium tracking-tight">Cloudrive</span>
     </div>
 
     <div class="card w-full max-w-md overflow-hidden">
@@ -164,7 +164,7 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
 
     <div v-if="err" class="alert alert-error mt-4 w-full max-w-md">{{ err }}</div>
 
-    <div class="mt-5 text-xs text-faint text-center">由 Filecove 提供 · 下载走直链</div>
+    <div class="mt-5 text-xs text-faint text-center">由 Cloudrive 提供 · 下载走直链</div>
 
     <!-- 灯箱 -->
     <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = false">
