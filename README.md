@@ -86,13 +86,16 @@ npm test               # vitest
 ### 2. 拿 Cloudflare API 令牌和 Account ID
 **Account ID**：打开 Cloudflare 控制台，右侧栏或 **Workers 和 Pages** 概览页就能看到一串 32 位十六进制字符。
 
-**API 令牌**：右上角头像 → **我的个人资料 → API 令牌 → 创建令牌**，用「**编辑 Cloudflare Workers**」模板，或自定义令牌时至少给这三项权限：
+**API 令牌**：右上角头像 → **我的个人资料 → API 令牌 → 创建令牌**。先用「**编辑 Cloudflare Workers**」模板打底，再补上后面三项的**编辑**权限：
 
 | 范围 | 权限 |
 | --- | --- |
-| Account → Workers Scripts | 编辑 |
-| Account → D1 | 编辑 |
-| Account → R2 | 编辑 |
+| 「编辑 Cloudflare Workers」模板 | 用它打底 |
+| Account → Workers Scripts | **编辑** |
+| Account → D1 | **编辑** |
+| Account → R2 | **编辑** |
+
+> 模板本身只覆盖 Workers 脚本，**不含 D1 和 R2**。缺了后两项，Actions 会在「准备资源」那一步失败——建不了数据库和桶。
 
 ### 3. 在 GitHub 里配 Secrets
 进你 Fork 的仓库 → **Settings → Secrets and variables → Actions → New repository secret**，添加：
@@ -398,7 +401,7 @@ R2 的 API 令牌：**R2 概览 → 管理 R2 API 令牌 → 创建 API 令牌**
 在仓库 Secrets 之外，用仓库变量（Variables）加 `D1_LOCATION` 或 `R2_LOCATION`，可选值：`wnam`（北美西）、`enam`（北美东）、`weur`（西欧）、`eeur`（东欧）、`apac`（亚太）、`oc`（大洋洲）。不填就由 Cloudflare 自动选。
 
 **Actions 报权限错误 / 建库失败？**
-多半是 API 令牌权限不够。确认令牌有 **Workers Scripts: 编辑**、**D1: 编辑**、**R2: 编辑** 三项（用「编辑 Cloudflare Workers」模板最省事），并且 `CLOUDFLARE_ACCOUNT_ID` 填的是账户 ID 而不是区域 ID。
+多半是 API 令牌权限不够。确认令牌用「编辑 Cloudflare Workers」模板打底，并且 **Workers Scripts / D1 / R2** 三项都有**编辑**权限——模板本身不含 D1 和 R2，要手动补。另外 `CLOUDFLARE_ACCOUNT_ID` 要填账户 ID 而不是区域 ID。
 
 **重跑工作流会重复建库或丢数据吗？**
 不会。脚本先查同名数据库，存在就复用；R2 桶已存在也直接跳过。只有首次会创建。
