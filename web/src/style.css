@@ -1,31 +1,35 @@
+/* ============================================================
+   Cloudrive 视觉层 —— Cloudreve / Material Design 风格
+   Cloudreve 官方前端是 React + Material-UI（见其 GitHub 技术栈说明），
+   所以这里按 MUI 的设计语言来：Roboto、8px 圆角、elevation 阴影、
+   AppBar 顶栏、outlined 输入框、ListItem 侧栏、涟漪式按压反馈。
+
+   浅色与深色各一套，靠 prefers-color-scheme 切换，也可在设置里锁定。
+   颜色写成「空格分隔的 RGB 三元组」，供 Tailwind 的
+   rgb(var(--x) / <alpha-value>) 使用。
+   ============================================================ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   设计令牌：iOS / SwiftUI 系统色
-   浅色与深色各一套，靠 prefers-color-scheme 切换。
-   值写成「空格分隔的 RGB 三元组」，供 Tailwind 的
-   rgb(var(--x) / <alpha-value>) 使用。
-   ============================================================ */
 :root {
-  --c-bg: 242 242 247; /* systemGroupedBackground */
-  --c-surface: 255 255 255; /* secondarySystemGroupedBackground */
-  --c-surface-2: 255 255 255;
-  --c-fill: 118 118 128; /* systemFill 基色（配 12% 透明度） */
-  --c-label: 0 0 0;
-  --c-label-2: 60 60 67; /* secondaryLabel */
-  --c-label-3: 60 60 67; /* tertiaryLabel */
-  --c-separator: 60 60 67; /* separator（配 18% 透明度） */
-  --c-tint: 0 122 255; /* systemBlue */
-  --c-tint-dark: 0 84 227;
-  --c-tint-light: 74 163 255;
-  --c-red: 255 59 48; /* systemRed */
-  --c-green: 52 199 89; /* systemGreen */
-  --c-orange: 255 149 0; /* systemOrange */
-  --nav-blur: 249 249 249;
-  --nav-blur-alpha: 0.82;
-  --hairline: 0.5px;
+  --c-bg: 245 245 245; /* MUI grey[100] 页面底色 */
+  --c-surface: 255 255 255; /* Paper */
+  --c-surface-2: 250 250 250; /* 略低一层的 Paper */
+  --c-fill: 158 158 158; /* 叠加层基色（hover / 填充） */
+  --c-label: 0 0 0; /* text.primary */
+  --c-label-2: 0 0 0; /* text.secondary */
+  --c-label-3: 0 0 0; /* text.disabled */
+  --c-separator: 0 0 0; /* divider（配 12% 透明度） */
+  --c-tint: 52 152 219; /* Cloudreve 默认主色 #3498db */
+  --c-tint-dark: 41 128 192; /* #2980b9 */
+  --c-tint-light: 93 173 226; /* #5dade2 */
+  --c-red: 244 67 54; /* MUI error */
+  --c-green: 76 175 80; /* MUI success */
+  --c-orange: 255 152 0; /* MUI warning */
+  --nav-blur: 255 255 255; /* AppBar 不透明，不用毛玻璃 */
+  --nav-blur-alpha: 1;
+  --hairline: 1px; /* Material divider 是 1px，不是 iOS 发丝线 */
 }
 
 /* ============================================================
@@ -41,46 +45,46 @@
    ============================================================ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --c-bg: 0 0 0;
-    --c-surface: 28 28 30;
-    --c-surface-2: 28 28 30;
-    --c-fill: 118 118 128;
+    --c-bg: 18 18 18;
+    --c-surface: 30 30 30;
+    --c-surface-2: 33 33 33;
+    --c-fill: 255 255 255;
     --c-label: 255 255 255;
-    --c-label-2: 235 235 245;
-    --c-label-3: 235 235 245;
-    --c-separator: 84 84 88;
-    --c-tint: 10 132 255;
-    --c-tint-dark: 54 156 255;
-    --c-tint-light: 79 169 255;
-    --c-red: 255 69 58;
-    --c-green: 48 209 88;
-    --c-orange: 255 159 10;
-    --nav-blur: 30 30 32;
-    --nav-blur-alpha: 0.8;
-    /* 发丝线在深浅色下都是 0.5px，这里显式写上，保持两套令牌对称 */
-    --hairline: 0.5px;
+    --c-label-2: 255 255 255;
+    --c-label-3: 255 255 255;
+    --c-separator: 255 255 255;
+    --c-tint: 93 173 226;
+    --c-tint-dark: 133 193 233;
+    --c-tint-light: 52 152 219;
+    --c-red: 239 83 80;
+    --c-green: 129 199 132;
+    --c-orange: 255 183 77;
+    --nav-blur: 30 30 30;
+    --nav-blur-alpha: 1;
+    /* 分隔线在深浅色下都是 1px，这里显式写上，保持两套令牌对称 */
+    --hairline: 1px;
   }
 }
 
 :root[data-theme='dark'] {
-    --c-bg: 0 0 0;
-    --c-surface: 28 28 30;
-    --c-surface-2: 28 28 30;
-    --c-fill: 118 118 128;
+    --c-bg: 18 18 18;
+    --c-surface: 30 30 30;
+    --c-surface-2: 33 33 33;
+    --c-fill: 255 255 255;
     --c-label: 255 255 255;
-    --c-label-2: 235 235 245;
-    --c-label-3: 235 235 245;
-    --c-separator: 84 84 88;
-    --c-tint: 10 132 255;
-    --c-tint-dark: 54 156 255;
-    --c-tint-light: 79 169 255;
-    --c-red: 255 69 58;
-    --c-green: 48 209 88;
-    --c-orange: 255 159 10;
-    --nav-blur: 30 30 32;
-    --nav-blur-alpha: 0.8;
-    /* 发丝线在深浅色下都是 0.5px，这里显式写上，保持两套令牌对称 */
-    --hairline: 0.5px;
+    --c-label-2: 255 255 255;
+    --c-label-3: 255 255 255;
+    --c-separator: 255 255 255;
+    --c-tint: 93 173 226;
+    --c-tint-dark: 133 193 233;
+    --c-tint-light: 52 152 219;
+    --c-red: 239 83 80;
+    --c-green: 129 199 132;
+    --c-orange: 255 183 77;
+    --nav-blur: 30 30 30;
+    --nav-blur-alpha: 1;
+    /* 分隔线在深浅色下都是 1px，这里显式写上，保持两套令牌对称 */
+    --hairline: 1px;
 }
 
 @layer base {
@@ -95,8 +99,8 @@
   body {
     @apply bg-canvas text-ink;
     font-family: theme('fontFamily.sans');
-    font-size: 15px; /* iOS 正文偏大，但不到 17，避免整体布局撑开 */
-    line-height: 1.45;
+    font-size: 14px; /* MUI body1 默认 14px */
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
@@ -118,27 +122,31 @@
 
 @layer components {
   /* ============ 按钮 ============
-     iOS 的按钮是圆角矩形（10px），不是 M3 的全圆角胶囊 */
+     MUI Button：8px 圆角、contained 带一层 elevation、hover 加深并抬升 */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded text-[15px] font-normal whitespace-nowrap;
+    @apply inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded text-[14px] font-medium whitespace-nowrap;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
   }
   .btn:disabled {
     @apply opacity-40 cursor-not-allowed;
   }
 
-  /* Filled：tint 实心。iOS 里这种按钮较少，主要用于登录、确认 */
+  /* Contained：主色实心 + elevation 2 */
   .btn-filled {
-    @apply bg-primary text-white shadow-none;
+    @apply bg-primary text-white;
+    box-shadow: 0 1px 3px rgb(var(--c-tint) / 0.35), 0 1px 2px rgba(0, 0, 0, 0.12);
   }
   .btn-filled:hover:not(:disabled) {
     background: rgb(var(--c-tint-dark));
+    box-shadow: 0 2px 6px rgb(var(--c-tint) / 0.4), 0 2px 4px rgba(0, 0, 0, 0.14);
   }
   .btn-filled:active:not(:disabled) {
     background: rgb(var(--c-tint-dark));
-    opacity: 0.85;
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   }
 
-  /* Tonal → iOS 的 systemFill 灰底按钮 */
+  /* Tonal → MUI 的灰底按钮 */
   .btn-tonal {
     @apply bg-soft text-ink shadow-none;
   }
@@ -146,29 +154,30 @@
     background: rgb(var(--c-fill) / 0.2);
   }
 
-  /* Outlined：描边 */
+  /* Outlined：1px 主色描边 */
   .btn-outlined {
     @apply bg-transparent text-primary shadow-none;
-    border: 1px solid rgb(var(--c-tint) / 0.4);
+    border: 1px solid rgb(var(--c-tint) / 0.5);
   }
   .btn-outlined:hover:not(:disabled) {
     background: rgb(var(--c-tint) / 0.08);
+    border-color: rgb(var(--c-tint) / 1);
   }
 
-  /* Text：纯 tint 文字，无背景（iOS 导航栏按钮就是这个） */
+  /* Text：纯主色文字（MUI text button） */
   .btn-text {
     @apply bg-transparent text-primary shadow-none px-2;
   }
   .btn-text:hover:not(:disabled) {
-    opacity: 0.7;
+    background: rgb(var(--c-tint) / 0.08);
   }
 
-  /* Text + 破坏性操作：systemRed */
+  /* Text + 破坏性操作 */
   .btn-error {
     @apply bg-transparent text-danger shadow-none px-2;
   }
   .btn-error:hover:not(:disabled) {
-    opacity: 0.7;
+    background: rgb(var(--c-red) / 0.08);
   }
 
   .btn-sm {
@@ -190,65 +199,92 @@
     @apply w-full;
   }
 
-  /* 侧栏「+ 新建」：iOS 里是 tint 色的圆角按钮，不是扩展 FAB */
+  /* 顶栏「+ 新建」：MUI contained 按钮，不是 FAB 也不是胶囊 */
   .fab-extended {
-    @apply inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded text-[15px] bg-primary text-white transition-opacity shadow-none;
+    @apply inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded text-[14px] font-medium bg-primary text-white;
+    box-shadow: 0 1px 3px rgb(var(--c-tint) / 0.35);
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
   }
   .fab-extended:hover {
-    opacity: 0.88;
+    background: rgb(var(--c-tint-dark));
+    box-shadow: 0 2px 6px rgb(var(--c-tint) / 0.4);
   }
 
-  /* ============ 卡片 / 分组 ============
-     iOS inset grouped：白底、10px 圆角、几乎不用阴影
-     （灰底背景已经把层次分出来了） */
+  /* ============ 卡片 ============
+     MUI Paper：白底、8px 圆角、elevation 1 阴影 */
   .card {
-    @apply bg-surface rounded border-none;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    @apply bg-surface rounded;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  /* ============ 导航栏（SwiftUI navigationBar） ============ */
+  /* ============ AppBar（Cloudreve 顶栏） ============
+     不透明纯色、64px 高、20px medium 标题、底部 elevation。
+     不是 iOS 的毛玻璃大标题。 */
   .navbar {
-    /* nav-actions 在 .large 形态下是绝对定位的，需要这里提供定位上下文 */
     position: relative;
-    @apply flex-none flex items-end justify-between gap-2 px-4 pb-2;
-    min-height: 52px;
+    @apply flex-none flex items-center justify-between gap-2 px-6;
+    min-height: 64px;
     background: rgb(var(--nav-blur) / var(--nav-blur-alpha));
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    border-bottom: none;
   }
-  /* 大标题形态：SwiftUI 的 .large 导航标题 */
+  /* 兼容模板里的 .large 修饰：视觉上仍是标准 AppBar */
   .navbar.large {
-    @apply flex-col items-start justify-end;
-    min-height: 96px;
+    @apply flex-row items-center justify-between;
+    min-height: 64px;
   }
   .nav-large-title {
-    font-size: 34px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    line-height: 1.1;
-    color: rgb(var(--c-label) / 1);
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.4;
+    color: rgb(var(--c-label) / 0.87);
   }
   .nav-title {
-    @apply text-[17px] font-semibold;
+    @apply text-[17px] font-medium;
   }
   .nav-btn {
-    @apply inline-flex items-center gap-1 px-1.5 py-1 text-[16px] text-primary bg-transparent border-0 rounded;
+    @apply inline-flex items-center justify-center gap-1 w-9 h-9 text-[16px] text-primary bg-transparent border-0 rounded-full;
+    transition: background-color 0.18s ease;
+  }
+  .nav-btn:hover {
+    background: rgb(var(--c-tint) / 0.1);
   }
   .nav-btn:active {
-    opacity: 0.5;
+    background: rgb(var(--c-tint) / 0.18);
   }
   .navbar.large .nav-actions {
-    @apply absolute right-3 bottom-3;
+    @apply static flex items-center gap-1;
   }
 
   /* ============ 表单 ============ */
   .field {
     @apply flex items-center gap-4 py-3;
-    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
+    border-bottom: 1px solid rgb(var(--c-separator) / 0.08);
   }
   .field-label {
-    @apply w-[180px] flex-none text-[15px] text-ink;
+    @apply w-[180px] flex-none text-[14px] text-ink;
+  }
+  .field-desc {
+    @apply text-xs text-faint mt-0.5;
+  }
+
+  /* MUI outlined TextField：透明底 + 1px 边框，focus 时 2px 主色描边 */
+  .input {
+    @apply flex-1 min-w-0 rounded px-3 py-2 text-[14px] outline-none bg-transparent;
+    border: 1px solid rgb(var(--c-separator) / 0.26);
+    color: rgb(var(--c-label) / 0.87);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .input::placeholder {
+    color: rgb(var(--c-label-3) / 0.38);
+  }
+  .input:hover {
+    border-color: rgb(var(--c-separator) / 0.42);
+  }
+  .input:focus {
+    border-color: rgb(var(--c-tint) / 1);
+    box-shadow: inset 0 0 0 1px rgb(var(--c-tint) / 1);
   }
   @media (max-width: 599px) {
     .field {
@@ -261,23 +297,28 @@
       @apply w-full;
     }
   }
-  .field-desc {
-    @apply text-xs text-faint mt-0.5;
+  /* MUI outlined TextField 的浮动 label：压在边框缺口上 */
+  .login-field {
+    position: relative;
   }
-
-  /* iOS 的文本输入框：无边框，靠灰底填充区分 */
-  .input {
-    @apply flex-1 min-w-0 rounded-sm px-3 py-2 text-[15px] outline-none;
-    background: rgb(var(--c-fill) / 0.12);
-    border: 1px solid transparent;
-    color: rgb(var(--c-label) / 1);
+  .login-field > .input {
+    height: 52px;
+    padding: 0 14px;
   }
-  .input::placeholder {
-    color: rgb(var(--c-label-3) / 0.3);
-  }
-  .input:focus {
-    border-color: rgb(var(--c-tint) / 0.6);
+  .login-field > label {
+    position: absolute;
+    left: 10px;
+    top: -8px;
+    z-index: 1;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 16px;
+    color: rgb(var(--c-label-2) / 0.6);
     background: rgb(var(--c-surface) / 1);
+    pointer-events: none;
+  }
+  .login-field:focus-within > label {
+    color: rgb(var(--c-tint) / 1);
   }
   .unit {
     @apply text-xs text-faint whitespace-nowrap;
@@ -297,43 +338,55 @@
     @apply text-[13px] text-muted;
   }
 
-  /* Chip（配置来源标签）：iOS 用 8px 圆角 + systemFill */
+  /* Chip（配置来源标签）：MUI Chip 是胶囊 */
   .src {
-    @apply text-[11px] text-muted bg-soft rounded-sm px-2 py-0.5 ml-2 whitespace-nowrap font-normal;
+    @apply text-[11px] text-muted bg-soft rounded-full px-2 py-0.5 ml-2 whitespace-nowrap font-normal;
   }
 
   /* 文件类型角标 */
   .ext {
-    @apply font-mono text-[10px] font-medium tracking-wide text-muted rounded-sm px-1.5 py-0.5 flex-none uppercase;
+    @apply font-mono text-[10px] font-medium tracking-wide text-muted rounded px-1.5 py-0.5 flex-none uppercase;
     background: rgb(var(--c-fill) / 0.12);
   }
 
   /* ============ 侧栏 ============
-     SwiftUI sidebar：选中项是圆角矩形 + tint 填充（iOS 14+ 样式） */
+     MUI ListItem：选中项是主色淡底 + 主色文字 + 左侧 3px 指示条 */
   .nav-item {
-    @apply flex items-center gap-2.5 h-10 px-3 rounded text-[15px] text-ink cursor-pointer select-none;
+    @apply flex items-center gap-2.5 h-10 px-3 rounded text-[14px] text-ink cursor-pointer select-none relative;
+    transition: background-color 0.18s ease, color 0.18s ease;
   }
   .nav-item:hover {
-    background: rgb(var(--c-fill) / 0.12);
+    background: rgb(var(--c-fill) / 0.08);
   }
   .nav-item-active {
+    background: rgb(var(--c-tint) / 0.12);
+    color: rgb(var(--c-tint) / 1);
+    font-weight: 500;
+  }
+  .nav-item-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
     background: rgb(var(--c-tint) / 1);
-    color: #fff;
   }
   .nav-item-active:hover {
-    background: rgb(var(--c-tint) / 1);
+    background: rgb(var(--c-tint) / 0.16);
   }
   .nav-icon {
     @apply w-5 h-5 flex-none text-muted;
   }
   .nav-item-active .nav-icon {
-    @apply text-white;
+    color: rgb(var(--c-tint) / 1);
   }
   .nav-badge {
     @apply ml-auto text-xs text-faint font-mono;
   }
   .nav-item-active .nav-badge {
-    @apply text-white/80;
+    color: rgb(var(--c-tint) / 0.8);
   }
 
   /* ============ 列表 / 表格 ============ */
@@ -341,32 +394,36 @@
     @apply w-full border-collapse;
   }
   thead th {
-    @apply text-left text-xs font-normal text-muted pb-2 pt-2 px-3;
-    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
+    @apply text-left text-xs font-medium text-muted pb-2 pt-2 px-3;
+    border-bottom: 1px solid rgb(var(--c-separator) / 0.12);
   }
   tbody td {
-    @apply py-3 px-3 text-[15px];
-    border-bottom: var(--hairline) solid rgb(var(--c-separator) / 0.18);
+    @apply py-3 px-3 text-[14px];
+    border-bottom: 1px solid rgb(var(--c-separator) / 0.08);
   }
   tbody tr:hover {
-    background: rgb(var(--c-fill) / 0.08);
+    background: rgb(var(--c-fill) / 0.04);
   }
 
-  /* ============ 提示条 ============ */
+  /* ============ 提示条（MUI Alert） ============ */
   .alert {
-    @apply rounded px-3.5 py-2.5 text-[13px] leading-relaxed border-none;
+    @apply rounded px-3.5 py-2.5 text-[13px] leading-relaxed;
+    border: 1px solid transparent;
   }
   .alert-info {
-    background: rgb(var(--c-tint) / 0.12);
-    color: rgb(var(--c-label) / 1);
+    background: rgb(var(--c-tint) / 0.1);
+    color: rgb(var(--c-label) / 0.87);
+    border-color: rgb(var(--c-tint) / 0.2);
   }
   .alert-warn {
-    background: rgb(var(--c-orange) / 0.14);
-    color: rgb(var(--c-label) / 1);
+    background: rgb(var(--c-orange) / 0.12);
+    color: rgb(var(--c-label) / 0.87);
+    border-color: rgb(var(--c-orange) / 0.24);
   }
   .alert-error {
-    background: rgb(var(--c-red) / 0.12);
+    background: rgb(var(--c-red) / 0.1);
     color: rgb(var(--c-red) / 1);
+    border-color: rgb(var(--c-red) / 0.2);
   }
 
   /* ============ 设备适配 ============ */
@@ -403,32 +460,33 @@
     min-width: 560px;
   }
 
-  /* 底部抽屉（iOS sheet：顶部大圆角） */
+  /* 底部抽屉（MUI Drawer / BottomSheet：顶部 16px 圆角） */
   .sheet {
     @apply bg-surface shadow-e3;
-    border-radius: 22px 22px 0 0;
+    border-radius: 16px 16px 0 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* ============ Switch（iOS） ============ */
+  /* ============ Switch（MUI） ============ */
   .switch {
-    @apply w-[51px] h-[31px] rounded-full relative flex-none cursor-pointer transition-colors;
-    background: rgb(var(--c-fill) / 0.24);
+    @apply w-[36px] h-[14px] rounded-full relative flex-none cursor-pointer transition-colors;
+    background: rgb(var(--c-fill) / 0.4);
   }
   .switch-on {
-    background: rgb(var(--c-green) / 1);
+    background: rgb(var(--c-tint) / 0.5);
   }
   .switch-dot {
     @apply absolute rounded-full transition-all;
-    top: 2px;
-    left: 2px;
-    width: 27px;
-    height: 27px;
+    top: -3px;
+    left: 0;
+    width: 20px;
+    height: 20px;
     background: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
   .switch-on .switch-dot {
-    left: 22px;
+    left: 16px;
+    background: rgb(var(--c-tint) / 1);
   }
 }
 
@@ -436,22 +494,22 @@
    统一在这里定义，组件只用 <Transition name="xxx"> 引用。
    全部尊重 prefers-reduced-motion。 */
 
-/* ---- push：SwiftUI NavigationStack 的推入 ----
-   新页面从右侧推入，旧页面向左做 20% 视差位移。
-   用 mode="out-in" 时两段动画串行，观感接近原生 push。 */
-.push-enter-active {
-  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.32s ease;
+/* ---- page：Material 的页面切换 ----
+   新内容从上方顺滑落下 + 淡入，旧内容向下淡出。
+   用 mode="out-in" 时两段动画串行。 */
+.page-enter-active {
+  transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.26s ease;
 }
-.push-leave-active {
-  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+.page-leave-active {
+  transition: transform 0.16s ease, opacity 0.16s ease;
 }
-.push-enter-from {
+.page-enter-from {
   opacity: 0;
-  transform: translateX(100%);
+  transform: translateY(-12px);
 }
-.push-leave-to {
+.page-leave-to {
   opacity: 0;
-  transform: translateX(-20%);
+  transform: translateY(8px);
 }
 
 /* 弹窗内容单独 zoom in（遮罩走 fade，内容走这个） */
@@ -469,7 +527,7 @@
   animation: zoomIn 0.24s cubic-bezier(0.34, 1.42, 0.64, 1);
 }
 
-/* ---- 遮罩：纯淡入淡出 ---- */
+/* ---- fade：遮罩 / 详情面板 ---- */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -479,12 +537,10 @@
   opacity: 0;
 }
 
-/* ---- 底部抽屉 / 上传面板：从下方滑上来 ---- */
-.sheet-enter-active {
-  transition: opacity 0.26s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+/* ---- sheet：抽屉 / 上传面板从下方滑入 ---- */
+.sheet-enter-active,
 .sheet-leave-active {
-  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .sheet-enter-from,
 .sheet-leave-to {
@@ -492,45 +548,21 @@
   transform: translateY(100%);
 }
 
-/* ---- 常规交互的顺滑感 ---- */
-.btn,
-.fab-extended {
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease,
-    transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
-}
-.btn:active:not(:disabled),
-.fab-extended:active {
-  transform: scale(0.97);
-}
-.btn:disabled {
-  transition: opacity 0.18s ease;
-}
-
-.card {
-  transition: box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 0.2s ease;
-}
-.nav-item {
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
+/* ---- 常规交互：颜色、阴影、按下反馈 ---- */
+.nav-item,
+.card,
 .input,
-select.input,
-textarea.input {
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+.fab-extended {
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
-/* 进度条宽度变化要平滑，不然上传时是一格一格跳 */
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
 .bar-fill {
-  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-img {
-  transition: opacity 0.25s ease;
-}
-/* 表格行 hover */
-tbody tr {
-  transition: background-color 0.15s ease;
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* ---- 无障碍：系统要求减弱动态效果时，全部关掉 ---- */
+/* ---- 尊重系统「减弱动态效果」 ---- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -539,9 +571,5 @@ tbody tr {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-  .btn:active:not(:disabled),
-  .fab-extended:active {
-    transform: none;
   }
 }

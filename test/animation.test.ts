@@ -11,10 +11,10 @@ const CSS = read('web/src/style.css');
 
 test('定义了三类过渡：页面切换 / 抽屉 / 淡入', () => {
   // Vue 的 <Transition name="x"> 需要有对应的 .x-enter-active 等类。
-  // 'view'（从上方落下）在 v2.0.0 被 'push' 取代，别再加回去。
-  // 弹窗的 zoom 不走 Transition，而是 .zoom-in 这个 animation（见下一条测试），
-  // 所以这里只有三类——之前两套机制并存，其中一套是没人用的死样式。
-  for (const name of ['push', 'sheet', 'fade']) {
+  // 界面改成 Cloudreve / Material 风格后，页面切换从 iOS 的 push 换回
+  // 从上方顺滑落下的 page。弹窗的 zoom 不走 Transition，而是 .zoom-in
+  // 这个 animation（见下一条测试），所以这里只有三类。
+  for (const name of ['page', 'sheet', 'fade']) {
     assert.match(CSS, new RegExp(`\\.${name}-enter-active`), `缺 .${name}-enter-active`);
     assert.match(CSS, new RegExp(`\\.${name}-leave-active`), `缺 .${name}-leave-active`);
     assert.match(CSS, new RegExp(`\\.${name}-enter-from`), `缺 .${name}-enter-from`);
@@ -22,16 +22,15 @@ test('定义了三类过渡：页面切换 / 抽屉 / 淡入', () => {
   }
 });
 
-test('页面切换是 SwiftUI 的 push（不是硬切）', () => {
-  const enter = /\.push-enter-from\s*\{([^}]*)\}/.exec(CSS);
-  assert.ok(enter, '缺 .push-enter-from');
-  assert.match(enter[1], /translateX\(100%\)/, '新页面不是从右侧推入');
+test('页面切换是从上方顺滑落下（不是硬切）', () => {
+  const enter = /\.page-enter-from\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(enter, '缺 .page-enter-from');
+  assert.match(enter[1], /translateY\(-/, '新页面不是从上方落下');
   assert.match(enter[1], /opacity:\s*0/, '没有淡入');
 
-  // 旧页面要向左做视差位移，这是 NavigationStack 的标志
-  const leave = /\.push-leave-to\s*\{([^}]*)\}/.exec(CSS);
-  assert.ok(leave, '缺 .push-leave-to');
-  assert.match(leave[1], /translateX\(-/, '旧页面没有视差左移');
+  const leave = /\.page-leave-to\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(leave, '缺 .page-leave-to');
+  assert.match(leave[1], /translateY\(8px\)/, '旧页面没有向下淡出');
 });
 
 test('弹窗是 zoom in（缩放 + 淡入，带轻微回弹）', () => {
@@ -76,8 +75,8 @@ test('尊重系统的「减弱动态效果」设置', () => {
 test('组件里确实用上了这些过渡', () => {
   // 视图切换
   const admin = read('web/src/views/AdminView.vue');
-  // v2.0.0 起改用 push（SwiftUI NavigationStack：新页从右推入、旧页视差左移）
-  assert.match(admin, /<Transition name="push"/, '管理后台没有页面切换过渡');
+  // Cloudreve / Material 风格：新内容从上方顺滑落下
+  assert.match(admin, /<Transition name="page"/, '管理后台没有页面切换过渡');
   assert.match(admin, /mode="out-in"/, '切换没用 out-in，会两个页面重叠跳动');
   assert.match(admin, /:key="active"/, '没有 key，切换时不会触发过渡');
 

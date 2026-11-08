@@ -66,46 +66,65 @@ onMounted(probe);
 
 <template>
   <div class="min-h-viewport bg-canvas flex flex-col items-center justify-center px-4 py-8 pb-safe">
-    <!-- 品牌：iOS 登录页通常是图标 + 大标题 -->
-    <div class="flex flex-col items-center mb-8">
-      <BrandLogo :size="64" class="mb-4" />
-      <h1 class="text-[28px] font-bold tracking-tight m-0">Cloudrive</h1>
-      <p class="text-[15px] text-muted m-0 mt-1">私人网盘 · 直链分享</p>
-    </div>
-
-    <!-- 登录表单：iOS inset grouped 卡片 -->
-    <div class="w-full max-w-sm compact:max-w-none">
-      <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
-
-      <form @submit.prevent="login">
-        <div class="card px-4 py-3 mb-4">
-          <label for="pwd" class="block text-[13px] text-muted mb-1">登录密码</label>
-          <input
-            id="pwd"
-            v-model="pwd"
-            type="password"
-            autocomplete="current-password"
-            placeholder="必填"
-            :disabled="noPassword"
-            class="input !px-0 !bg-transparent"
-            @keyup.enter="login"
-          />
+    <!-- 登录卡片：MUI Paper，居中、elevation -->
+    <div class="w-full max-w-[420px] compact:max-w-none">
+      <div class="card px-7 py-7 compact:px-5 compact:py-6">
+        <!-- 站点品牌：Cloudreve 演示站登录页顶部会显示站点名 -->
+        <div class="flex items-center gap-2.5 mb-6">
+          <BrandLogo :size="38" />
+          <div class="min-w-0">
+            <div class="text-[16px] font-medium leading-tight truncate">Cloudrive</div>
+            <div class="text-xs text-muted leading-tight mt-0.5">私人网盘 · 直链分享</div>
+          </div>
         </div>
 
-        <button type="submit" :disabled="noPassword || busy" class="btn btn-filled w-full">
-          {{ busy ? '验证中…' : '登 录' }}
-        </button>
-      </form>
+        <h1 class="text-[24px] font-medium m-0 leading-tight">登录你的账号</h1>
+        <p class="text-sm text-muted m-0 mt-1.5 mb-6">输入管理员密码以继续</p>
 
-      <div v-if="err" class="alert alert-error mt-4">{{ err }}</div>
-    </div>
+        <div v-if="hint" class="alert alert-warn mb-4">{{ hint }}</div>
 
-    <!-- 实例信息 -->
-    <div class="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[13px] text-faint font-mono">
-      <span v-if="status?.driver">{{ status.driver }}</span>
-      <span v-if="status?.bucket">{{ status.bucket }}</span>
-      <span>{{ status?.https === false ? 'HTTP' : 'HTTPS' }}</span>
-      <span>v{{ boot.version }}</span>
+        <form @submit.prevent="login">
+          <!-- MUI outlined TextField：label 浮在边框缺口上 -->
+          <div class="login-field mb-5">
+            <label for="pwd">私人网盘登录密码</label>
+            <input
+              id="pwd"
+              v-model="pwd"
+              type="password"
+              autocomplete="current-password"
+              :disabled="noPassword"
+              class="input w-full"
+              @keyup.enter="login"
+            />
+          </div>
+
+          <button type="submit" :disabled="noPassword || busy" class="btn btn-filled w-full h-10">
+            {{ busy ? '验证中…' : '登录' }}
+          </button>
+        </form>
+
+        <div v-if="err" class="alert alert-error mt-4">{{ err }}</div>
+
+        <!-- 对应演示站的注册入口那一行：我们是单管理员实例，
+             不开放注册，所以这里只做说明，不放点了没反应的假链接 -->
+        <div class="mt-5 text-[13px] text-muted">私人实例 · 不开放注册，仅管理员可登录</div>
+
+        <div class="h-px bg-rule my-5"></div>
+
+        <!-- 对应演示站的第三方登录区：本实例没有 SSO / QQ / 通行密钥，
+             放一排假按钮会误导，改为一条真实可用的自检链接 -->
+        <a href="/api/status" target="_blank" rel="noopener" class="block text-center text-[13px] text-primary hover:underline">
+          查看实例状态
+        </a>
+      </div>
+
+      <!-- 底部：对应演示站的条款链接位置，这里放真实的实例信息 -->
+      <div class="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-faint font-mono">
+        <span v-if="status?.driver">{{ status.driver }}</span>
+        <span v-if="status?.bucket">{{ status.bucket }}</span>
+        <span>{{ status?.https === false ? 'HTTP' : 'HTTPS' }}</span>
+        <span>v{{ boot.version }}</span>
+      </div>
     </div>
   </div>
 </template>

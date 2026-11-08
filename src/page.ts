@@ -67,7 +67,7 @@ export function spaHtml(o: SpaOptions): string {
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#007AFF">
+<meta name="theme-color" content="#3498db">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <title>${esc(title)}</title>

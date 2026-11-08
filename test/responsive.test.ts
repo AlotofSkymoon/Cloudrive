@@ -99,7 +99,7 @@ test('视口 meta 带 viewport-fit=cover（安全区生效的前提）', () => {
   }
 });
 
-test('两个页面模板的主题色一致，且是 iOS systemBlue', () => {
+test('两个页面模板的主题色一致，且是 Cloudreve 默认蓝', () => {
   // 主题色写在两处（web/index.html 与 src/page.ts），改了一处忘另一处
   // 不会报错，只是移动端地址栏着色对不上——所以这里钉住两者相等。
   const html = read('web/index.html');
@@ -110,8 +110,8 @@ test('两个页面模板的主题色一致，且是 iOS systemBlue', () => {
   assert.ok(a, 'web/index.html 没有 theme-color');
   assert.ok(b, 'src/page.ts 没有 theme-color');
   assert.equal(a[1].toUpperCase(), b[1].toUpperCase(), `两处主题色不一致：${a[1]} vs ${b[1]}`);
-  // iOS systemBlue（和 --c-tint 保持一致）
-  assert.equal(a[1].toUpperCase(), '#007AFF', `主题色不是 iOS systemBlue：${a[1]}`);
+  // Cloudreve 默认主色 #3498db（和 style.css 的 --c-tint 保持一致）
+  assert.equal(a[1].toUpperCase(), '#3498DB', `主题色不是 Cloudreve 蓝：${a[1]}`);
 });
 
 test('详情面板在窄屏不是直接隐藏，而是底部抽屉', () => {

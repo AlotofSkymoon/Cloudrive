@@ -1,4 +1,5 @@
-// 界面外观的共享状态（主题色、图标配色）。
+// 界面外观的共享状态（主题色、外观模式、图标配色）。
+// 视觉基线是 Cloudreve / Material Design，见 web/src/style.css。
 // 配置存在数据库里，前端启动时拉一次；拉不到就用默认值，不影响渲染。
 import { computed, ref, watch } from 'vue';
 import { api } from './api';
@@ -48,16 +49,17 @@ export const isDark = computed(() => {
    不只是品牌图标，图标配色是另一项独立设置。
    ============================================================ */
 
-/** 可选的主题色。值是 iOS 系统色的浅色 / 深色两套 RGB 三元组。 */
+/** 可选的主题色。值是 Material 调色板的浅色 / 深色两套 RGB 三元组。
+ *  默认蓝是 Cloudreve 的主色 #3498db，和 style.css 的 :root 保持一致。 */
 export const TINTS = {
-  blue: { base: '0 122 255', hover: '0 84 227', darkBase: '10 132 255', darkHover: '54 156 255' },
-  purple: { base: '175 82 222', hover: '140 58 180', darkBase: '191 90 242', darkHover: '160 68 205' },
-  pink: { base: '255 45 85', hover: '220 32 70', darkBase: '255 55 95', darkHover: '225 45 80' },
-  red: { base: '255 59 48', hover: '210 45 36', darkBase: '255 69 58', darkHover: '215 55 46' },
-  orange: { base: '255 149 0', hover: '215 122 0', darkBase: '255 159 10', darkHover: '215 130 5' },
-  green: { base: '52 199 89', hover: '40 168 72', darkBase: '48 209 88', darkHover: '40 178 74' },
-  indigo: { base: '88 86 214', hover: '68 66 175', darkBase: '125 122 255', darkHover: '104 101 215' },
-  graphite: { base: '142 142 147', hover: '118 118 123', darkBase: '152 152 157', darkHover: '128 128 133' },
+  blue: { base: '52 152 219', hover: '41 128 192', darkBase: '93 173 226', darkHover: '133 193 233' },
+  purple: { base: '156 39 176', hover: '123 31 162', darkBase: '206 147 216', darkHover: '171 71 188' },
+  pink: { base: '233 30 99', hover: '194 24 91', darkBase: '244 143 177', darkHover: '216 27 96' },
+  red: { base: '244 67 54', hover: '211 47 47', darkBase: '229 115 115', darkHover: '198 40 40' },
+  orange: { base: '255 152 0', hover: '245 124 0', darkBase: '255 183 77', darkHover: '239 108 0' },
+  green: { base: '76 175 80', hover: '56 142 60', darkBase: '129 199 132', darkHover: '67 160 71' },
+  indigo: { base: '63 81 181', hover: '48 63 159', darkBase: '121 134 203', darkHover: '57 73 171' },
+  graphite: { base: '96 125 139', hover: '69 90 100', darkBase: '144 164 174', darkHover: '84 110 122' },
 } as const;
 
 export type TintName = keyof typeof TINTS;

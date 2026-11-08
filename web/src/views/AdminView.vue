@@ -206,8 +206,8 @@ onMounted(() => {
       </header>
 
       <div class="flex-1 overflow-y-auto px-6 py-5 stacked:px-3 stacked:overflow-visible pb-safe">
-        <!-- 切换视图走 SwiftUI NavigationStack 的 push：新页从右推入、旧页视差左移 -->
-        <Transition name="push" mode="out-in">
+        <!-- 切换视图走 Material 的页面过渡：新内容从上方顺滑落下 -->
+        <Transition name="page" mode="out-in">
           <div :key="active">
             <FilesPanel
               v-if="isFileView"
