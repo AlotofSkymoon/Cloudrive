@@ -74,10 +74,13 @@ test('README 写全了 API 令牌需要的权限', () => {
   // 令牌权限漏一项，Actions 会在「准备资源」那步失败（建不了 D1 / R2）。
   // 「编辑 Cloudflare Workers」模板只覆盖 Workers 脚本，不含 D1 和 R2，
   // 所以文档必须写清楚要手动补——之前只写了三项，没提模板的局限。
-  const readme = read('README.md');
+  const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
   assert.match(readme, /编辑 Cloudflare Workers/, '没提「编辑 Cloudflare Workers」模板');
   for (const scope of ['Workers Scripts', 'D1', 'R2']) {
-    assert.match(readme, new RegExp(`Account → ${scope.replace(' ', ' ')}[^|]*\|\s*\*\*编辑\*\*`), `${scope} 没有标注编辑权限`);
+    // 用普通字符串拼 RegExp，反斜杠要写两遍：\\| 才是正则里的字面竖线，
+    // \\s 才是空白类。写成模板字符串里的 \| 会被 JS 吞成 |，正则直接坏掉。
+    const row = new RegExp('Account → ' + scope + '[^|]*\\|\\s*\\*\\*编辑\\*\\*');
+    assert.match(readme, row, `${scope} 没有标注编辑权限`);
   }
   // 要说明模板不含 D1 / R2，否则用户会以为选了模板就够了
   assert.match(readme, /模板本身只覆盖 Workers 脚本/, '没说明模板不含 D1 / R2');
