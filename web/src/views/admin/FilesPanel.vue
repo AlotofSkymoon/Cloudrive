@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue';
-import { api, copyText, fileExt, fileKind, fmtBytes, fmtShort, isImage, type FileItem } from '../../api';
+import { api, copyText, fileExt, fileKind, fmtBytes, fmtShort, isAudio, isImage, isVideo, type FileItem } from '../../api';
 
 const props = defineProps<{ filter?: string }>();
 const emit = defineEmits<{ changed: []; select: [file: FileItem | null]; deleted: [] }>();
@@ -351,6 +351,9 @@ function thumbFail(el: Event) {
 }
 
 const lightbox = ref<string | null>(null);
+/* 媒体灯箱：点卡片上的播放按钮直接播视频 / 音频，不用先展开详情面板 */
+const mediaId = ref<string | null>(null);
+const mediaFile = computed(() => files.value.find((f) => f.id === mediaId.value) || null);
 
 function fmtSpeed(bps: number): string {
   return fmtBytes(bps) + '/s';
@@ -462,8 +465,8 @@ onMounted(() => load(true));
           <svg v-if="sel[i]" width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z" /></svg>
         </span>
 
-        <!-- 缩略图 -->
-        <div class="aspect-square bg-canvas rounded flex items-center justify-center overflow-hidden mb-2">
+        <!-- 缩略图：图片显示首图，视频 / 音频给播放按钮，点开直接播 -->
+        <div class="aspect-square bg-canvas rounded flex items-center justify-center overflow-hidden mb-2 relative">
           <img
             v-if="isImage(f)"
             class="w-full h-full object-cover cursor-zoom-in"
@@ -474,7 +477,19 @@ onMounted(() => load(true));
             @error="thumbFail"
             @click.stop="lightbox = f.id"
           />
-          <span v-else class="text-2xl font-mono font-medium text-faint uppercase">{{ fileExt(f.name) }}</span>
+          <button
+            v-else-if="isVideo(f) || isAudio(f)"
+            class="play-badge"
+            :title="'播放 ' + f.name"
+            @click.stop="mediaId = f.id"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5Z" /></svg>
+          </button>
+          <span
+            v-if="isVideo(f) || isAudio(f)"
+            class="absolute bottom-1.5 right-2 text-[10px] font-mono uppercase text-faint pointer-events-none"
+          >{{ fileExt(f.name) }}</span>
+          <span v-else-if="!isImage(f)" class="text-2xl font-mono font-medium text-faint uppercase">{{ fileExt(f.name) }}</span>
         </div>
 
         <div class="px-1 pb-1">
@@ -525,8 +540,16 @@ onMounted(() => load(true));
                 loading="lazy"
                 alt=""
                 @error="thumbFail"
-                @click="lightbox = f.id"
+                @click.stop="lightbox = f.id"
               />
+              <button
+                v-else-if="isVideo(f) || isAudio(f)"
+                class="play-badge-sm"
+                :title="'播放 ' + f.name"
+                @click.stop="mediaId = f.id"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5Z" /></svg>
+              </button>
               <span v-else class="ext">{{ fileExt(f.name) }}</span>
             </td>
             <td><div class="truncate max-w-[280px]" :title="f.name">{{ f.name }}</div></td>
@@ -679,10 +702,37 @@ onMounted(() => load(true));
     </div>
     </Transition>
 
-    <!-- 灯箱 -->
+    <!-- 图片灯箱 -->
     <Transition name="fade">
     <div v-if="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4 cursor-zoom-out" @click="lightbox = null">
       <img :src="`/preview/${lightbox}`" class="zoom-in max-w-full max-h-full rounded" alt="" />
+    </div>
+    </Transition>
+
+    <!-- 视频 / 音频播放灯箱 -->
+    <Transition name="fade">
+    <div v-if="mediaFile" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[130] p-4" @click="mediaId = null">
+      <div class="zoom-in w-full max-w-3xl" @click.stop>
+        <video
+          v-if="isVideo(mediaFile)"
+          :src="`/preview/${mediaFile.id}`"
+          class="w-full max-h-[75vh] bg-black rounded-lg"
+          controls
+          autoplay
+          playsinline
+        ></video>
+        <div v-else class="card p-6 flex flex-col items-center gap-4">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="text-primary">
+            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+          </svg>
+          <div class="text-sm font-medium break-all text-center">{{ mediaFile.name }}</div>
+          <audio :src="`/preview/${mediaFile.id}`" class="w-full" controls autoplay></audio>
+        </div>
+        <div class="flex items-center justify-between gap-3 mt-3 text-white/80 text-xs">
+          <span class="truncate">{{ mediaFile.name }}</span>
+          <button class="btn btn-text btn-sm !text-white" @click="mediaId = null">关闭</button>
+        </div>
+      </div>
     </div>
     </Transition>
   </section>

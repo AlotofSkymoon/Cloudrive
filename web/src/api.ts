@@ -164,6 +164,18 @@ const SOFTWARE_EXT =
 
 export type FileKind = 'image' | 'video' | 'audio' | 'doc' | 'software' | 'other';
 
+/** 能放进 <video> 的常见格式（浏览器不一定全支持，交给 onerror 兜底） */
+const PLAYABLE_VIDEO = /\.(mp4|webm|mov|m4v|ogv)$/i;
+/** 能放进 <audio> 的常见格式 */
+const PLAYABLE_AUDIO = /\.(mp3|wav|ogg|m4a|aac|opus|flac)$/i;
+
+export function isVideo(f: { name?: string; mime?: string | null }): boolean {
+  return /^video\//i.test(f.mime || '') || PLAYABLE_VIDEO.test(f.name || '');
+}
+export function isAudio(f: { name?: string; mime?: string | null }): boolean {
+  return /^audio\//i.test(f.mime || '') || PLAYABLE_AUDIO.test(f.name || '');
+}
+
 export function fileKind(f: { name?: string; mime?: string | null }): FileKind {
   const mime = String(f?.mime || '').toLowerCase();
   const name = String(f?.name || '');

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { api, copyText, fileExt, fileKind, fmtBytes, fmtFull, isImage, type FileItem } from '../../api';
+import { api, copyText, fileExt, fileKind, fmtBytes, fmtFull, isAudio, isImage, isVideo, type FileItem } from '../../api';
 
 const props = defineProps<{ file: FileItem }>();
 const emit = defineEmits<{ close: []; deleted: [] }>();
@@ -18,6 +18,7 @@ const kindText = ref('');
 const busy = ref(false);
 const msg = ref('');
 const lightbox = ref(false);
+const mediaFailed = ref(false);
 
 const KIND_LABEL: Record<string, string> = {
   image: '图片',
@@ -31,6 +32,7 @@ watch(
   () => props.file?.id,
   () => {
     msg.value = '';
+    mediaFailed.value = false;
     const k = fileKind(props.file);
     kindText.value = KIND_LABEL[k] || '文件';
   },
@@ -100,9 +102,12 @@ async function remove() {
       <button class="btn btn-text btn-sm" @click="emit('close')">关闭</button>
     </div>
 
-    <!-- 预览 -->
+    <!-- 预览：图片放大看，视频 / 音频直接播放 -->
     <div class="p-4">
-      <div class="rounded bg-surface-container overflow-hidden flex items-center justify-center aspect-square">
+      <div
+        class="rounded bg-surface-container overflow-hidden flex items-center justify-center"
+        :class="isVideo(file) && !mediaFailed ? 'aspect-video bg-black' : 'aspect-square'"
+      >
         <img
           v-if="isImage(file)"
           :src="`/preview/${file.id}`"
@@ -110,7 +115,25 @@ async function remove() {
           alt=""
           @click="lightbox = true"
         />
-        <span v-else class="text-3xl font-mono font-medium text-faint uppercase">{{ fileExt(file.name) }}</span>
+        <video
+          v-else-if="isVideo(file) && !mediaFailed"
+          :src="`/preview/${file.id}`"
+          class="w-full h-full object-contain"
+          controls
+          playsinline
+          preload="metadata"
+          @error="mediaFailed = true"
+        ></video>
+        <div v-else-if="isAudio(file) && !mediaFailed" class="w-full flex flex-col items-center gap-4 px-4">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor" class="text-faint">
+            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+          </svg>
+          <audio :src="`/preview/${file.id}`" class="w-full" controls preload="metadata" @error="mediaFailed = true"></audio>
+        </div>
+        <div v-else class="flex flex-col items-center gap-2">
+          <span class="text-3xl font-mono font-medium text-faint uppercase">{{ fileExt(file.name) }}</span>
+          <span v-if="mediaFailed" class="text-xs text-muted px-4 text-center">浏览器不支持在线播放此格式，请下载后打开</span>
+        </div>
       </div>
 
       <h3 class="text-sm font-medium mt-4 mb-1 break-all leading-snug">{{ file.name }}</h3>

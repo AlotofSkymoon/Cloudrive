@@ -5,7 +5,8 @@ import * as auth from './auth.js';
 import * as limit from './limit.js';
 import { createStorage } from './storage.js';
 import { spaHtml, errorResponse, faviconResponse } from './page.js';
-import { sharePage, unlock, doDownload, directLink } from './share.js';
+import { sharePage, unlock, doDownload, directLink, mediaStream } from './share.js';
+import { mediaResponse } from './media.js';
 import {
   json,
   html,
@@ -157,35 +158,26 @@ export default {
     if ((m = /^\/raw\/([\w-]{4,32})$/.exec(p))) {
       return doDownload(request, env, ctx, storage, cfg, m[1], { inline: true });
     }
+    // 视频 / 音频在线播放：支持 Range，且不计下载次数（见 share.ts 的 mediaStream）
+    if ((m = /^\/stream\/([\w-]{4,32})$/.exec(p)) && method === 'GET') {
+      return mediaStream(request, env, ctx, storage, cfg, m[1]);
+    }
     if ((m = /^\/direct\/([\w-]{4,32})$/.exec(p))) {
       return directLink(request, env, ctx, storage, cfg, m[1]);
     }
 
-    // ---------- 图片预览（后台列表缩略图用，需登录）----------
+    // ---------- 在线预览（需登录）----------
+    // 图片缩略图、灯箱、以及后台里的视频 / 音频播放器都走这里。
+    // 走 Worker 代理不走直链：公网域名一旦没开公开访问（很常见），
+    // 直链就会 404，缩略图全部加载不出来。下载仍然走直链。
     if ((m = /^\/preview\/([\w-]{8,32})$/.exec(p)) && method === 'GET') {
       if (!(await auth.isAdmin(request, env))) return new Response('未登录', { status: 401 });
       const row = await db.get(env, 'SELECT * FROM files WHERE id = ?', m[1]);
       if (!row) return new Response('文件不存在', { status: 404 });
-      // 预览走 Worker 代理，不走直链。
-      // 预览走 Worker 代理，不走直链：公网域名一旦没开公开访问（很常见），
-      // 直链就会 404，缩略图全部加载不出来。
-      // 预览流量很小，先保证一定能显示；下载仍然走直链。
-      const obj = await storage.get(row.key);
-      if (!obj) {
-        // 代理拿不到再退回直链，至少给浏览器一次机会
-        const pub = storage.publicUrl ? storage.publicUrl(row.key) : null;
-        if (pub) return redirect(pub);
-        if (storage.presignGet) {
-          const signed = await storage.presignGet(row.key, { expires: 3600 });
-          if (signed) return redirect(signed);
-        }
-        return new Response('对象不存在', { status: 404 });
-      }
-      return new Response(obj.body, {
-        headers: {
-          'content-type': row.mime || obj.contentType || 'application/octet-stream',
-          'cache-control': 'private, max-age=300',
-        },
+      return mediaResponse(request, storage, row.key, {
+        mime: row.mime || '',
+        size: row.size,
+        cache: 'private, max-age=300',
       });
     }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BrandLogo from '../components/BrandLogo.vue';
 import { onMounted, ref } from 'vue';
-import { api, fileExt, fmtBytes, fmtFull, isImage } from '../api';
+import { api, fileExt, fmtBytes, fmtFull, isAudio, isImage, isVideo } from '../api';
 
 const props = defineProps<{ boot: any }>();
 
@@ -18,6 +18,13 @@ const tsToken = ref('');
 const prevFailed = ref(false);
 
 const disabled = !!s.error || !!s.banned;
+const mediaFailed = ref(false);
+const fileMeta = { name: s.file_name, mime: s.file_mime };
+const playableVideo = isVideo(fileMeta);
+const playableAudio = isAudio(fileMeta);
+// 带密码 / 人机验证的分享，验证通过前不渲染播放器：
+// /stream 会返回 401，与其让 <video> 报错，不如先显示文件占位。
+const canPlayMedia = !disabled && !needPwd && !needTs;
 
 function prevFail() {
   // 预览加载不出来先重试一次，再退回占位
@@ -99,10 +106,10 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
     </div>
 
     <div class="card w-full max-w-md overflow-hidden compact:max-w-none">
-      <!-- 预览 -->
+      <!-- 预览：图片放大看，视频 / 音频在线播放（走 /stream，不计下载次数） -->
       <div class="bg-canvas flex items-center justify-center min-h-[200px] border-b border-rule compact:min-h-[140px]">
         <img
-          v-if="!disabled && isImage({ name: s.file_name, mime: s.file_mime }) && !prevFailed"
+          v-if="!disabled && isImage(fileMeta) && !prevFailed"
           id="pv-img"
           :src="`/raw/${code}`"
           class="block w-full max-h-[360px] object-contain cursor-zoom-in compact:max-h-[240px]"
@@ -111,11 +118,28 @@ const limitText = s.max_downloads ? `${s.downloads || 0} / ${s.max_downloads} �
           @error="prevFail"
           @click="lightbox = true"
         />
+        <video
+          v-else-if="canPlayMedia && playableVideo && !mediaFailed"
+          :src="`/stream/${code}`"
+          class="block w-full max-h-[360px] bg-black compact:max-h-[240px]"
+          controls
+          playsinline
+          preload="metadata"
+          @error="mediaFailed = true"
+        ></video>
+        <div v-else-if="canPlayMedia && playableAudio && !mediaFailed" class="w-full flex flex-col items-center gap-3 px-6 py-8">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="text-faint">
+            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+          </svg>
+          <audio :src="`/stream/${code}`" class="w-full" controls preload="metadata" @error="mediaFailed = true"></audio>
+        </div>
         <div v-else class="flex flex-col items-center gap-2 text-faint py-10">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm-1 7V3.5L18.5 9H13Z" />
           </svg>
           <span class="font-mono text-[13px] uppercase tracking-wide">{{ fileExt(s.file_name) }}</span>
+          <span v-if="mediaFailed" class="text-xs text-muted px-4 text-center">浏览器不支持在线播放此格式，请下载后打开</span>
+          <span v-else-if="(playableVideo || playableAudio) && !canPlayMedia" class="text-xs text-muted px-4 text-center">验证后可在线播放</span>
         </div>
       </div>
 

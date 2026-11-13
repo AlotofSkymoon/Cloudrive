@@ -3,6 +3,7 @@ import * as db from './db.js';
 import * as limit from './limit.js';
 import * as auth from './auth.js';
 import { spaHtml, errorResponse } from './page.js';
+import { mediaResponse } from './media.js';
 import {
   json,
   html,
@@ -195,6 +196,47 @@ export async function doDownload(request, env, ctx, storage, cfg, code, { inline
   }
   // 兜底：Worker 代理流式下载（会消耗 Worker 流量）
   return await proxyDownload(request, env, storage, share, inline, wantName);
+}
+
+// GET /stream/:code —— 视频 / 音频在线播放，支持 Range。
+//
+// 与 /raw/:code 的关键区别：**不计下载次数**。
+// <video> 拖动一次进度条就会连发好几个 Range 请求，如果走 /raw，
+// 一个视频能把「限 1 次」的分享瞬间耗光，点下载时反而提示已达上限。
+// 只有点「下载」按钮（/d/:code）才计次，这也更符合直觉：看 ≠ 下载。
+//
+// 这里也不写 action='download' 日志，所以单 IP 限流不会把播放中的
+// Range 请求误算成一次次下载；封禁检查、月度流量上限照常生效。
+export async function mediaStream(request, env, ctx, storage, cfg, code) {
+  const share = await loadShare(env, code);
+  if (!share) return new Response('链接不存在', { status: 404 });
+
+  const ip = clientIp(request);
+  if (await limit.isBanned(env, ip)) return new Response('访问受限', { status: 403 });
+  const err = checkExpired(share);
+  if (err) return new Response(err, { status: 403 });
+
+  // 没通过密码 / 人机验证不给播，避免 /stream 变成绕过分享保护的口子
+  if (share.password_hash) {
+    const data = await auth.verifyToken(env, auth.readCookie(request, `sp_${code}`));
+    if (!data || data.c !== code) return new Response('需要访问密码', { status: 401 });
+  }
+  if (cfg.turnstileEnabled) {
+    const data = await auth.verifyToken(env, auth.readCookie(request, `ts_${code}`));
+    if (!data || data.c !== code) return new Response('需要人机验证', { status: 401 });
+  }
+  const rateErr = await ipGuard(env, request, cfg);
+  if (rateErr) return new Response(rateErr.error, { status: 429 });
+  const trafficErr = await trafficGuard(env, cfg);
+  if (trafficErr) return new Response(trafficErr.error, { status: 403 });
+
+  // 强制走代理：/stream 必须能正确处理 Range。302 到直链虽然也能播，
+  // 但公网域名没开公开访问时就会 404，和图片预览踩过的是同一个坑。
+  return mediaResponse(request, storage, share.file_key, {
+    mime: share.file_mime || '',
+    size: share.file_size,
+    cache: 'private, max-age=300',
+  });
 }
 
 function redirectTo(request, path, status = 302) {

@@ -349,6 +349,33 @@
     background: rgb(var(--c-fill) / 0.12);
   }
 
+  /* 视频 / 音频卡片上的播放按钮 */
+  .play-badge {
+    @apply w-12 h-12 rounded-full flex items-center justify-center text-white cursor-pointer;
+    background: rgb(var(--c-tint) / 1);
+    border: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  }
+  .play-badge:hover {
+    background: rgb(var(--c-tint-dark));
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
+  }
+  .play-badge:active {
+    transform: scale(0.96);
+  }
+  .play-badge-sm {
+    @apply w-8 h-8 rounded-full flex items-center justify-center text-white cursor-pointer;
+    background: rgb(var(--c-tint) / 1);
+    border: 0;
+    transition: transform 0.18s ease, background-color 0.18s ease;
+  }
+  .play-badge-sm:hover {
+    background: rgb(var(--c-tint-dark));
+    transform: scale(1.08);
+  }
+
   /* ============ 侧栏 ============
      MUI ListItem：选中项是主色淡底 + 主色文字 + 左侧 3px 指示条 */
   .nav-item {

@@ -257,6 +257,27 @@ r = await call(`/direct/${code}`);
 const dl = await r.json();
 assert('/direct 返回直链 JSON', dl.ok && dl.url.startsWith('https://cdn.example.com/'), JSON.stringify(dl));
 
+// 13.5 视频 / 音频在线播放：必须支持 Range，且不能扣下载次数
+// <video> 拖一次进度条会连发好几个 Range 请求，若走 /raw 会计成好几次下载
+{
+  await env.DB.prepare('UPDATE shares SET downloads = 0 WHERE code = ?').bind(code).run();
+  const before = await env.DB.prepare('SELECT downloads FROM shares WHERE code = ?').bind(code).first();
+  const r206 = await call(`/stream/${code}`, { headers: { range: 'bytes=0-2' } });
+  const part = await r206.text();
+  assert('媒体流返回 206 + Content-Range', r206.status === 206 && r206.headers.get('content-range') === 'bytes 0-2/5', `状态 ${r206.status} range=${r206.headers.get('content-range')}`);
+  assert('媒体流只回请求的字节段', part === 'hel', JSON.stringify(part));
+  assert('媒体流声明 Accept-Ranges', r206.headers.get('accept-ranges') === 'bytes');
+  const r200 = await call(`/stream/${code}`);
+  assert('媒体流无 Range 时返回 200', r200.status === 200, `状态 ${r200.status}`);
+  await r200.text();
+  const after = await env.DB.prepare('SELECT downloads FROM shares WHERE code = ?').bind(code).first();
+  assert('在线播放不计下载次数', before.downloads === after.downloads, `${before.downloads} → ${after.downloads}`);
+  // 后台预览接口也被视频播放器复用，同样要支持 Range
+  const pv = await call(`/preview/${fileId}`, { headers: { range: 'bytes=1-3' } });
+  const pvBody = await pv.text();
+  assert('后台预览支持 Range', pv.status === 206 && pv.headers.get('content-range') === 'bytes 1-3/5' && pvBody === 'ell', `状态 ${pv.status} body=${pvBody}`);
+}
+
 // 14. 限流封禁
 // 配置现在以数据库为准（网页里改），所以这里直接写 settings 表
 await env.DB.prepare("INSERT INTO settings (k, v, updated_at) VALUES ('IP_MAX_DOWNLOADS', '1', 0)").run();
